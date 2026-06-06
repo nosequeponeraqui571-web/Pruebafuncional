@@ -1,0 +1,89 @@
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-primary text-white">
+        <h6 class="m-0 font-weight-bold">Control de Ahorros Semanales - {{ bingo_seleccionado.titulobingo }}</h6>
+        
+        <form method="GET" class="form-inline">
+            <select name="bingo_id" class="form-control form-control-sm" onchange="this.form.submit()">
+                {% for b in todos_los_bingos %}
+                    <option value="{{ b.idbingo }}" {% if b.idbingo == bingo_seleccionado.idbingo %}selected{% endif %}>
+                        {{ b.titulobingo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    
+    <div class="card-body">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-bordered table-hover table-sm text-center align-middle" style="font-size: 0.85rem;">
+                <thead class="thead-dark style="position: sticky; top: 0; z-index: 10;">
+                    <tr>
+                        <th class="text-left" style="min-width: 220px;">Socio / Colaborador</th>
+                        {% for sem in semanas %}
+                            <th>Sem {{ sem }}</th>
+                        {% endfor %}
+                        <th class="bg-success text-white">Total Ahorro</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for renglon in matriz_socios %}
+                    <tr>
+                        <td class="text-left font-weight-bold text-gray-800">
+                            {{ renglon.objeto_socio.primerapellidosocio }} {{ renglon.objeto_socio.primernombresocio }}
+                            <small class="text-muted d-block">{{ renglon.objeto_socio.cisocio }}</small>
+                        </td>
+
+                        {% for sem in semanas %}
+                            {% with celda=renglon.semanas_data|default:None %}
+                                {% with info_celda=renglon.semanas_data_dict %}
+                                    {# Nota: Como los diccionarios nativos de Django no permiten lookup por variable dinámica fácilmente, la vista ya indexó esto de forma lineal #}
+                                {% endwith %}
+                            {% endwith %}
+                            
+                            {# Acceso correcto por iteración controlada #}
+                            <td class="p-1">
+                                {% for num_sem, info in renglon.semanas_data.items %}
+                                    {% if num_sem == sem %}
+                                        {% if info %}
+                                            {% if info.estado == 'Al Dia' %}
+                                                <div class="bg-success-light text-success p-1 rounded font-weight-bold" style="background-color: #e2fcdb;">
+                                                    ${{ info.monto }}
+                                                </div>
+                                            {% else %}
+                                                <div class="bg-danger-light text-danger p-1 rounded font-weight-bold" style="background-color: #ffe3e3;" title="Aatrasado">
+                                                    ${{ info.monto }}
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted" style="font-size: 1.2rem;">-</span>
+                                        {% endif %}
+                                    {% endif %}
+                                endfor
+                            </td>
+                        {% endfor %}
+
+                        <td class="font-weight-bold bg-light text-success">
+                            ${{ renglon.total_acumulado }}
+                        </td>
+
+                        <td>
+                            {% if renglon.tiene_atrasos %}
+                                <span class="badge badge-warning text-dark">Con Atrasos</span>
+                            {% else %}
+                                <span class="badge badge-success">Al Día</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ semanas|length|add:3 }}" class="text-center text-muted py-4">
+                            No hay socios activos registrados para desplegar la matriz.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
