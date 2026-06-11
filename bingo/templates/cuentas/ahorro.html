@@ -1,0 +1,105 @@
+{% extends 'comunes/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Incluimos el componente de alertas para los mensajes de éxito/error -->
+    {% include 'componentes/alertas.html' %}
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">💰 Mi Libreta de Ahorros</h2>
+            <p class="text-muted">Bienvenido, {{ socio.primernombresocio }}. Aquí puedes gestionar tus ahorros y solicitar retiros.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Tarjeta de Saldo y Retiro -->
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Resumen de Saldo</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Ahorrado</h6>
+                    <h1 class="display-4 text-success fw-bold">${{ total_ahorrado|floatformat:2 }}</h1>
+                    <hr>
+                    
+                    <!-- Formulario de Solicitud de Retiro -->
+                    <h5 class="mt-4 mb-3">Solicitar Retiro</h5>
+                    <form method="POST" action="{% url 'ahorro' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="solicitar_retiro">
+                        
+                        <div class="form-group mb-3 text-start">
+                            <label for="monto_retiro" class="form-label">Monto a retirar ($)</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="monto_retiro" 
+                                   name="monto_retiro" 
+                                   step="0.01" 
+                                   min="0.01" 
+                                   max="{{ total_ahorrado|stringformat:'f' }}" 
+                                   placeholder="0.00" 
+                                   required>
+                            <small class="text-muted">El monto máximo que puedes retirar es tu saldo actual.</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-outline-success w-100" 
+                                {% if total_ahorrado <= 0 %}disabled{% endif %}>
+                            <i class="fas fa-hand-holding-usd"></i> Enviar Solicitud
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Historial de Movimientos -->
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">Historial de Movimientos</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Concepto/Estado</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movimiento in historial_ahorros %}
+                                <tr>
+                                    <td>{{ movimiento.fechaahorro|date:"d M Y, H:i" }}</td>
+                                    <td>
+                                        {% if movimiento.estadoahorro == 'Acreditado' %}
+                                            <span class="badge bg-success">Depósito Acreditado</span>
+                                        {% elif movimiento.estadoahorro == 'Retiro Pendiente' %}
+                                            <span class="badge bg-warning text-dark">Retiro en Revisión</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ movimiento.estadoahorro }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold {% if movimiento.montoahorro < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {% if movimiento.montoahorro > 0 %}+{% endif %}${{ movimiento.montoahorro|floatformat:2 }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">
+                                        No tienes movimientos registrados en tu libreta.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

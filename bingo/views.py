@@ -26,6 +26,10 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
 from django.shortcuts import render
 from decimal import Decimal
+from django.shortcuts import render, redirect
+
+
+
 
 def inicio(request):
     preguntar_jugador = request.session.pop('preguntar_jugador', False)
@@ -246,7 +250,80 @@ def dashboard(request):
                 moneda.estadomoneda = True if request.POST.get('estadomoneda') == 'on' else False
                 moneda.save()
                 messages.success(request, "Divisa actualizada correctamente.")
+
+            elif action == 'crear_ahorro':
+                socio = get_object_or_404(Socio, idsocio=request.POST.get('id_socio'))
+                monto_ahorro = request.POST.get('montoahorro')
                 
+                Ahorro.objects.create(
+                    idsocio=socio,
+                    montoahorro=monto_ahorro,
+                    fechaahorro=timezone.now(),
+                    estadoahorro='Acreditado'
+                )
+                messages.success(request, f"Se ha registrado un ahorro de ${monto_ahorro} para el socio {socio.primernombresocio}.")
+
+            elif action == 'crear_prestamo':
+                socio = get_object_or_404(Socio, idsocio=request.POST.get('id_socio'))
+                monto_solicitado = request.POST.get('montoprestamosolicitado')
+                interes = request.POST.get('tasainteres', 0)
+                
+                # Cálculo simple del total a pagar (Monto + (Monto * interes / 100))
+                monto_total = float(monto_solicitado) + (float(monto_solicitado) * float(interes) / 100)
+                
+                Prestamo.objects.create(
+                    idsocio=socio,
+                    montoprestamosolicitado=monto_solicitado,
+                    montototalpagar=monto_total,
+                    saldopendiente=monto_total,
+                    fechasolicitud=timezone.now(),
+                    estadoprestamo='Aprobado'
+                )
+                messages.success(request, f"Préstamo aprobado para {socio.primernombresocio} por un total a pagar de ${monto_total}.")
+
+            elif action == 'registrar_pago_prestamo':
+                prestamo = get_object_or_404(Prestamo, idprestamo=request.POST.get('id_prestamo'))
+                monto_abonado = request.POST.get('monto_abono')
+                metodo_pago = get_object_or_404(MetodoPago, idmetodopago=request.POST.get('id_metodo_pago'))
+                
+                # Restar el saldo
+                prestamo.saldopendiente = float(prestamo.saldopendiente) - float(monto_abonado)
+                
+                # Si pagó todo, se liquida
+                if prestamo.saldopendiente <= 0:
+                    prestamo.saldopendiente = 0
+                    prestamo.estadoprestamo = 'Liquidado'
+                prestamo.save()
+                
+                # Guardar el registro del pago
+                Pago.objects.create(
+                    idprestamo=prestamo,
+                    idmetodopago=metodo_pago,
+                    montopago=monto_abonado,
+                    fechapago=timezone.now(),
+                    estadopago='Completado'
+                )
+                messages.success(request, f"Abono de ${monto_abonado} registrado exitosamente al préstamo.")
+                # =======================================================
+            # APROBAR O RECHAZAR CRÉDITOS DESDE EL DASHBOARD
+            # =======================================================
+            elif action == 'aprobar_prestamo':
+                id_prestamo = request.POST.get('id_prestamo')
+                prestamo = get_object_or_404(Prestamo, idprestamo=id_prestamo)
+                
+                # Cambiamos el estado a Aprobado para activar el crédito
+                prestamo.estadoprestamo = 'Aprobado'
+                prestamo.save()
+                messages.success(request, f"El crédito #{prestamo.idprestamo} para {prestamo.idsocio.primernombresocio} ha sido Aprobado.")
+
+            elif action == 'rechazar_prestamo':
+                id_prestamo = request.POST.get('id_prestamo')
+                prestamo = get_object_or_404(Prestamo, idprestamo=id_prestamo)
+                
+                # Como tu modelo no tiene el estado 'Rechazado', eliminamos la solicitud denegada
+                prestamo.delete()
+                messages.warning(request, "La solicitud de crédito ha sido rechazada y eliminada del sistema.")
+
             elif action == 'eliminar_moneda':
                 UnidadMonetaria.objects.get(idunidadmonetaria=request.POST.get('id_moneda')).delete()
                 messages.success(request, "Divisa eliminada del sistema.")
@@ -316,13 +393,329 @@ def bingo_publico(request):
     }
     return render(request, 'comunes/bingo.html', contexto)
 
-def cuenta_bancaria(request): return render(request, 'cuentas/cuenta_bancaria.html')
-def ahorro(request): return render(request, 'cuentas/ahorro.html')
+@login_required
+def cuenta_bancaria(request):
+    """
+    Vista para que el Socio registre y elimine sus cuentas bancarias para recibir depósitos.
+    """
+    socio = Socio.objects.filter(cisocio=request.user.username).first()
+    if not socio:
+        messages.warning(request, "Debes ser Socio para gestionar cuentas bancarias.")
+        return redirect('inicio')
+
+    # Obtener las cuentas vinculadas al socio
+    cuentas = CuentaBancaria.objects.filter(idsocio=socio)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'agregar_cuenta':
+            CuentaBancaria.objects.create(
+                idsocio=socio,
+                bancocuentabancaria=request.POST.get('banco'),
+                tipocuentabancaria=request.POST.get('tipo_cuenta'),
+                numerocuentabancaria=request.POST.get('numero_cuenta'),
+                titularcuentabancaria=request.POST.get('titular'),
+                estadocuentabancaria='Activa'
+            )
+            messages.success(request, "Cuenta bancaria agregada exitosamente a tu perfil.")
+            
+        elif action == 'eliminar_cuenta':
+            id_cuenta = request.POST.get('id_cuenta')
+            # Nos aseguramos de que solo pueda eliminar SU propia cuenta
+            cuenta = CuentaBancaria.objects.filter(idcuentabancaria=id_cuenta, idsocio=socio).first()
+            if cuenta:
+                cuenta.delete()
+                messages.success(request, "La cuenta bancaria ha sido eliminada.")
+        
+        return redirect('cuenta_bancaria')
+
+    contexto = {
+        'socio': socio,
+        'cuentas': cuentas
+    }
+    return render(request, 'cuentas/cuenta_bancaria.html', contexto)
+
+@login_required
+def ahorro(request):
+    """
+    Vista para que el Socio vea su libreta de ahorros y solicite retiros.
+    """
+    socio = Socio.objects.filter(cisocio=request.user.username).first()
+    if not socio:
+        messages.warning(request, "Debes ser Socio de la cooperativa para acceder a la libreta de ahorros.")
+        return redirect('inicio')
+
+    # Obtener todo el historial de ahorros de este socio
+    historial_ahorros = Ahorro.objects.filter(idsocio=socio).order_by('-fechaahorro')
+    
+    # Calcular el total ahorrado sumando solo los depósitos confirmados/acreditados
+    total_ahorrado = historial_ahorros.filter(estadoahorro='Acreditado').aggregate(total=Sum('montoahorro'))['total'] or Decimal('0.00')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # Acción para que el socio solicite sacar dinero de sus ahorros
+        if action == 'solicitar_retiro':
+            monto_retiro = request.POST.get('monto_retiro')
+            try:
+                monto_retiro = float(monto_retiro)
+                if 0 < monto_retiro <= float(total_ahorrado):
+                    # Se registra en negativo como retiro pendiente de aprobación
+                    Ahorro.objects.create(
+                        idsocio=socio,
+                        montoahorro=-monto_retiro, 
+                        fechaahorro=timezone.now(),
+                        estadoahorro='Retiro Pendiente'
+                    )
+                    messages.success(request, f"Solicitud de retiro de ${monto_retiro} enviada a administración para su aprobación.")
+                else:
+                    messages.error(request, "Monto inválido o fondos insuficientes en tu libreta.")
+            except ValueError:
+                messages.error(request, "Por favor ingresa un monto numérico válido.")
+            return redirect('ahorro')
+
+    contexto = {
+        'socio': socio,
+        'historial_ahorros': historial_ahorros,
+        'total_ahorrado': total_ahorrado
+    }
+    return render(request, 'cuentas/ahorro.html', contexto)
+
 def regalo(request): return render(request, 'cuentas/regalo.html')
-def control_aportes(request): return render(request, 'negocio/control_aportes.html')
-def creditos(request): return render(request, 'negocio/creditos.html')
-def metodos_pago(request): return render(request, 'negocio/metodos_pago.html')
-def pago(request): return render(request, 'negocio/pago.html')
+@login_required
+def control_aportes(request):
+    
+    if request.method == 'POST':
+        if not request.user.is_staff:
+            messages.error(request, "Solo los administradores pueden registrar aportes.")
+            return redirect('inicio')
+
+        id_socio = request.POST.get('id_socio')
+        id_bingo = request.POST.get('id_bingo')
+        numero_semana = request.POST.get('numero_semana')
+        monto = request.POST.get('monto')
+        
+        try:
+            socio = get_object_or_404(Socio, idsocio=id_socio)
+            bingo = get_object_or_404(Bingo, idbingo=id_bingo)
+            
+            # Buscar si el aporte ya existe (para actualizarlo) o crearlo nuevo
+            aporte, creado = AporteSemanal.objects.get_or_create(
+                idsocio=socio,
+                idbingo=bingo,
+                numerosemana=numero_semana,
+                defaults={
+                    'montoaporte': monto,
+                    'estadoaporte': 'Al Dia',
+                    'fechaplanificadadada': timezone.now() # Fecha de registro
+                }
+            )
+            
+            # Si ya existía, simplemente lo marcamos como pagado
+            if not creado:
+                aporte.montoaporte = monto
+                aporte.estadoaporte = 'Al Dia'
+                aporte.fechaplanificadadada = timezone.now()
+                aporte.save()
+
+            messages.success(request, f"Aporte de la semana {numero_semana} registrado exitosamente para el socio {socio.primernombresocio}.")
+            
+            # Redirigir a la misma vista manteniendo el bingo seleccionado
+            return redirect(f"/control_aportes/?bingo_id={id_bingo}")
+            
+        except Exception as e:
+            messages.error(request, f"Error al registrar el aporte: {str(e)}")
+            return redirect('control_aportes')
+
+    # =========================================================
+    # LÓGICA EXISTENTE: MOSTRAR LA MATRIZ (PETICIONES GET)
+    # =========================================================
+    id_bingo = request.GET.get('bingo_id')
+    if id_bingo:
+        bingo_seleccionado = Bingo.objects.filter(idbingo=id_bingo).first()
+    else:
+        bingo_seleccionado = Bingo.objects.filter(estadobingo='En Curso').first() or Bingo.objects.order_by('-fechaprogramadabingo').first()
+
+    if not bingo_seleccionado:
+        return render(request, 'administrador/control_aportes.html', {'error': 'No hay eventos de bingo creados.'})
+
+    socios = Socio.objects.filter(estadosocio='Activo').order_by('primerapellidosocio', 'primernombresocio')
+    aportes = AporteSemanal.objects.filter(idbingo=bingo_seleccionado).select_related('idsocio')
+
+    semanas_query = aportes.values_list('numerosemana', flat=True).distinct().order_by('numerosemana')
+    semanas = list(semanas_query) if semanas_query.exists() else list(range(1, 6))
+
+    matriz_socios = {}
+    for socio in socios:
+        matriz_socios[socio.idsocio] = {
+            'objeto_socio': socio,
+            'semanas_data': {sem: None for sem in semanas},
+            'total_acumulado': Decimal('0.00'),
+            'tiene_atrasos': False
+        }
+
+    for aporte in aportes:
+        s_id = aporte.idsocio_id
+        if s_id in matriz_socios:
+            if aporte.numerosemana in matriz_socios[s_id]['semanas_data']:
+                matriz_socios[s_id]['semanas_data'][aporte.numerosemana] = {
+                    'monto': aporte.montoaporte,
+                    'estado': aporte.estadoaporte,
+                    'id_aporte': aporte.idaporte
+                }
+                if aporte.estadoaporte == 'Al Dia':
+                    matriz_socios[s_id]['total_acumulado'] += aporte.montoaporte
+                elif aporte.estadoaporte == 'Atrasado':
+                    matriz_socios[s_id]['tiene_atrasos'] = True
+
+    context = {
+        'bingo_seleccionado': bingo_seleccionado,
+        'todos_los_bingos': Bingo.objects.all().order_by('-fechaprogramadabingo'),
+        'semanas': semanas,
+        'matriz_socios': matriz_socios.values(),
+    }
+    return render(request, 'administrador/control_aportes.html', context)
+@login_required
+def creditos(request):
+    """
+    Vista para que el Socio vea sus préstamos activos y solicite nuevos créditos.
+    """
+    socio = Socio.objects.filter(cisocio=request.user.username).first()
+    if not socio or socio.estadosocio != 'Activo':
+        messages.error(request, "Acceso denegado: Solo los socios activos pueden solicitar créditos.")
+        return redirect('inicio')
+
+    mis_prestamos = Prestamo.objects.filter(idsocio=socio).order_by('-fechasolicitud')
+    
+    # NUEVO: Obtenemos a los otros socios para que salgan en la lista de Garantes (excluyendo al socio actual)
+    lista_socios = Socio.objects.filter(estadosocio='Activo').exclude(idsocio=socio.idsocio)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'solicitar_prestamo':
+            monto_solicitado = request.POST.get('montoprestamosolicitado')
+            numerocuotas = request.POST.get('numerocuotas')
+            tasainteres = request.POST.get('tasainteres')
+            fechavencimiento = request.POST.get('fechavencimiento')
+            
+            # NUEVO: Capturar los garantes seleccionados
+            idgarante1 = request.POST.get('idgarante1')
+            idgarante2 = request.POST.get('idgarante2')
+            
+            try:
+                monto = float(monto_solicitado)
+                cuotas = int(numerocuotas)
+                tasa = Decimal(tasainteres)
+                
+                if monto > 0 and cuotas > 0 and tasa >= 0:
+                    interes_calculado = (Decimal(str(monto)) * tasa) / Decimal('100')
+                    monto_total = Decimal(str(monto)) + interes_calculado
+                    
+                    # NUEVO: Buscar los objetos Socio de los garantes (si el usuario escogió alguno)
+                    garante1_obj = Socio.objects.filter(idsocio=idgarante1).first() if idgarante1 else None
+                    garante2_obj = Socio.objects.filter(idsocio=idgarante2).first() if idgarante2 else None
+                    
+                    try:
+                        Prestamo.objects.create(
+                            idsocio=socio,
+                            idgarante1=garante1_obj, # Guarda el garante 1
+                            idgarante2=garante2_obj, # Guarda el garante 2
+                            montoprestamosolicitado=monto,
+                            tasainteres=tasa,
+                            numerocuotas=cuotas,
+                            montototalpagar=monto_total,
+                            saldopendiente=monto_total,
+                            fechasolicitud=timezone.now(),
+                            fechavencimiento=fechavencimiento, 
+                            estadoprestamo='Solicitado'
+                        )
+                        messages.success(request, f"¡Tu solicitud por ${monto_solicitado} ha sido enviada!")
+                    except Exception as e:
+                        messages.error(request, f"Error al guardar en BD: {str(e)}")
+                else:
+                    messages.error(request, "Los valores numéricos deben ser mayores a 0.")
+            except ValueError:
+                messages.error(request, "Por favor ingresa datos numéricos válidos en el formulario.")
+                
+        return redirect('creditos')
+
+    contexto = {
+        'socio': socio,
+        'mis_prestamos': Prestamo.objects.filter(idsocio=socio),
+        'lista_socios': Socio.objects.filter(estadosocio='Activo').exclude(idsocio=socio.idsocio)
+    }
+    return render(request, 'negocio/creditos.html', contexto)
+
+@login_required
+def metodos_pago(request):
+    """
+    Vista informativa para que el Socio vea los métodos de pago aceptados por la cooperativa.
+    (Ej. Números de cuenta donde puede realizar depósitos).
+    """
+    if not request.user.is_authenticated:
+        return redirect('inicio_sesion')
+        
+    metodos_activos = MetodoPago.objects.filter(estadometodopago=True)
+    
+    contexto = {
+        'metodos_activos': metodos_activos
+    }
+    return render(request, 'negocio/metodos_pago.html', contexto)
+
+@login_required
+def pago(request):
+    """
+    Vista para que el Socio reporte o registre un pago realizado a sus préstamos.
+    """
+    socio = Socio.objects.filter(cisocio=request.user.username).first()
+    if not socio:
+        messages.warning(request, "Debes ser Socio para registrar pagos de préstamos.")
+        return redirect('inicio')
+
+    # Préstamos que aún tienen saldo pendiente
+    prestamos_activos = Prestamo.objects.filter(idsocio=socio).exclude(estadoprestamo='Liquidado')
+    metodos_activos = MetodoPago.objects.filter(estadometodopago=True)
+    historial_pagos = Pago.objects.filter(idprestamo__idsocio=socio).order_by('-fechapago')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'registrar_pago':
+            id_prestamo = request.POST.get('id_prestamo')
+            id_metodo = request.POST.get('id_metodo')
+            monto_pago = request.POST.get('monto_pago')
+
+            try:
+                monto = float(monto_pago)
+                # Validar que el préstamo pertenece al socio y existe
+                prestamo = prestamos_activos.filter(idprestamo=id_prestamo).first()
+                metodo = metodos_activos.filter(idmetodopago=id_metodo).first()
+
+                if prestamo and metodo and monto > 0:
+                    Pago.objects.create(
+                        idprestamo=prestamo,
+                        idmetodopago=metodo,
+                        montopago=monto,
+                        fechapago=timezone.now(),
+                        estadopago='Pendiente' # Queda pendiente de verificación por el admin
+                    )
+                    messages.success(request, "Tu comprobante de pago ha sido registrado. Un administrador verificará la transacción pronto.")
+                else:
+                    messages.error(request, "Datos inválidos. Por favor, verifica el préstamo y el método de pago seleccionado.")
+            except ValueError:
+                messages.error(request, "El monto ingresado no es válido.")
+        
+        return redirect('pago')
+
+    contexto = {
+        'socio': socio,
+        'prestamos_activos': prestamos_activos,
+        'metodos_activos': metodos_activos,
+        'historial_pagos': historial_pagos
+    }
+    return render(request, 'negocio/pago.html', contexto)
 
 # IMPORTANTE: Eliminamos el @login_required de aquí arriba
 def sala_espera(request, id_partida):

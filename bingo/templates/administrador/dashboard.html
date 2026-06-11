@@ -31,7 +31,7 @@
 </style>
 
 <div class="container-fluid px-lg-4 pb-5">
-  
+    
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="card-minimalista p-3 text-center border-start border-primary border-4 h-100">
@@ -42,7 +42,7 @@
         <div class="col-6 col-md-3">
             <div class="card-minimalista p-3 text-center border-start border-danger border-4 h-100">
                 <span class="text-secondary small fw-bold text-uppercase" data-bs-toggle="tooltip" title="Cartera total pendiente de cobro en préstamos activos">Capital en Calle</span>
-                <h4 class="fw-bold mb-0 text-danger">${{ deuda_calle }}</h4>
+                <h4 class="fw-bold mb-0 text-danger">${{ deuda_calle|floatformat:2 }}</h4>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -227,10 +227,12 @@
                                 <i class="fas fa-file-excel me-2"></i> Exportar Cartera Vencida
                             </a>
                         </div>
+                        
                         <div class="input-group input-group-sm mb-3">
                             <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
                             <input type="text" id="search-creditos" class="form-control bg-transparent border-start-0" placeholder="Buscar por socio..." onkeyup="filterTable('search-creditos', 'table-creditos')">
                         </div>
+                        
                         <div class="table-responsive table-scroll-container">
                             <table class="table align-middle" id="table-creditos">
                                 <thead>
@@ -247,17 +249,117 @@
                                     {% for p in prestamos %}
                                     <tr>
                                         <td class="fw-semibold">{{ p.idsocio.primernombresocio }} {{ p.idsocio.primerapellidosocio }}</td>
-                                        <td>${{ p.montoprestamosolicitado }}</td>
+                                        <td>${{ p.montoprestamosolicitado|floatformat:2 }}</td>
                                         <td class="small text-muted">{{ p.tasainteres }}%</td>
-                                        <td class="fw-bold text-body">${{ p.montototalpagar }}</td>
-                                        <td class="text-danger fw-bold">${{ p.saldopendiente }}</td>
-                                        <td><span class="badge text-bg-light border">{{ p.estadoprestamo }}</span></td>
+                                        <td class="fw-bold text-body">${{ p.montototalpagar|floatformat:2 }}</td>
+                                        <td class="text-danger fw-bold">${{ p.saldopendiente|floatformat:2 }}</td>
+                                        <td>
+                                            {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
+                                                <!-- BOTÓN COMPACTO -->
+                                                <button type="button" class="btn btn-warning btn-sm py-0 px-2 fw-bold shadow-sm" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalRevisarCredito{{ p.idprestamo }}">
+                                                    <i class="fas fa-exclamation-circle"></i> Revisar
+                                                </button>
+                                            {% else %}
+                                                <span class="badge text-bg-light border">{{ p.estadoprestamo }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">No existen registros de préstamos en el sistema.</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
+
+                    {% for p in prestamos %}
+                        {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
+                        <div class="modal fade text-start" id="modalRevisarCredito{{ p.idprestamo }}" tabindex="-1" aria-hidden="true" style="white-space: normal;">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-dark text-white">
+                                        <h5 class="modal-title"><i class="fas fa-search-dollar"></i> Revisión de Crédito #{{ p.idprestamo }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-body" style="font-size: 1rem;">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-user"></i> Datos del Socio</h6>
+                                                <ul class="list-unstyled">
+                                                    <li class="mb-1"><strong>Nombre:</strong> {{ p.idsocio.primernombresocio }} {{ p.idsocio.primerapellidosocio }}</li>
+                                                    <li class="mb-1"><strong>Cédula:</strong> {{ p.idsocio.cisocio }}</li>
+                                                    <li class="mb-1"><strong>Teléfono:</strong> {{ p.idsocio.telefonosocio|default:"No registrado" }}</li>
+                                                    <li class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">{{ p.idsocio.estadosocio }}</span></li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-file-invoice-dollar"></i> Detalles del Crédito</h6>
+                                                <ul class="list-unstyled">
+                                                    <li class="mb-1"><strong>Monto Solicitado:</strong> <span class="fw-bold">${{ p.montoprestamosolicitado|floatformat:2 }}</span></li>
+                                                    <li class="mb-1"><strong>Cuotas a pagar:</strong> {{ p.numerocuotas }} meses</li>
+                                                    <li class="mb-1"><strong>Tasa Aplicada:</strong> {{ p.tasainteres }}%</li>
+                                                    <li class="mb-1"><strong>Total con Interés:</strong> <span class="text-danger fw-bold">${{ p.montototalpagar|floatformat:2 }}</span></li>
+                                                    <li class="mb-1"><strong>Vencimiento:</strong> {{ p.fechavencimiento|date:"d M Y" }}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="text-danger border-bottom pb-2 mt-2 fw-bold"><i class="fas fa-users"></i> Garantías Presentadas</h6>
+                                        <div class="row bg-light border p-2 rounded mb-3 mx-0">
+                                            <div class="col-md-6">
+                                                <strong>Garante 1:</strong><br>
+                                                {% if p.idgarante1 %}
+                                                    {{ p.idgarante1.primernombresocio }} {{ p.idgarante1.primerapellidosocio }} <br>
+                                                    <small class="text-muted">CI: {{ p.idgarante1.cisocio }}</small>
+                                                {% else %}
+                                                    <span class="text-muted fst-italic">Sin garante principal</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Garante 2:</strong><br>
+                                                {% if p.idgarante2 %}
+                                                    {{ p.idgarante2.primernombresocio }} {{ p.idgarante2.primerapellidosocio }} <br>
+                                                    <small class="text-muted">CI: {{ p.idgarante2.cisocio }}</small>
+                                                {% else %}
+                                                    <span class="text-muted fst-italic">Sin garante secundario</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="alert alert-info py-2 small mb-0">
+                                            <i class="fas fa-info-circle"></i> Al aprobar el crédito, su estado cambiará a <strong>Aprobado</strong> y el socio podrá empezar a abonar cuotas.
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                        
+                                        <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="rechazar_prestamo">
+                                            <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
+                                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('¿Estás seguro de rechazar y eliminar esta solicitud?');">
+                                                <i class="fas fa-times"></i> Rechazar
+                                            </button>
+                                        </form>
+
+                                        <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="aprobar_prestamo">
+                                            <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-check"></i> Aprobar Crédito
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
 
                     <div class="row g-4 mb-4">
                         <div class="col-xl-7">
@@ -309,7 +411,6 @@
                             </div>
                         </div>
                     </div>
-
 
                     <div class="card-minimalista p-4 mb-4 border-start border-warning border-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">

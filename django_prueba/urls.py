@@ -83,6 +83,6 @@ urlpatterns = [
     
     # Logica de las bolas
     path('api/partida/<int:id_partida>/sacar_bola/', views.sacar_bola_api, name='sacar_bola_api'),
-
-
+    path('ahorro/', views.ahorro, name='ahorro'),
+    path('creditos/', views.creditos, name='creditos'),
 ]
