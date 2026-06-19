@@ -133,6 +133,7 @@
                                 </div>
                                 {% endif %}
                                 
+                                
                                 <div class="col-12 text-end mt-4">
                                     <button type="submit" class="btn btn-indigo px-4"><i class="fas fa-save me-2"></i> Guardar Cambios</button>
                                 </div>
@@ -169,7 +170,7 @@
                             </div>
                         </form>
                     </div>
-
+      
                     <div class="tab-pane fade" id="historial">
                         <div class="accordion" id="accordionHistorial">
                             
@@ -283,6 +284,20 @@
                                     </div>
                                 </div>
                             </div>
+                             <!-- BOTONES DE REDIRECCIÓN AÑADIDOS AQUÍ -->
+                                            <div class="row g-3 mt-4">
+                                                <div class="col-md-6">
+                                                    <a href="{% url 'creditos' %}" class="btn btn-outline-success w-100 fw-bold py-2 shadow-sm">
+                                                        <i class="fas fa-hand-holding-usd me-2"></i> Ir a Mis Créditos
+                                                    </a>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <a href="{% url 'ahorro' %}" class="btn btn-outline-info w-100 fw-bold py-2 shadow-sm">
+                                                        <i class="fas fa-piggy-bank me-2"></i> Ir a Mis Ahorros
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <!-- FIN DE BOTONES DE REDIRECCIÓN -->
                             {% endif %}
                             
                         </div>

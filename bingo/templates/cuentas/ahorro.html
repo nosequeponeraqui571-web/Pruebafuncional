@@ -7,9 +7,16 @@
     {% include 'componentes/alertas.html' %}
 
     <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="mb-3">💰 Mi Libreta de Ahorros</h2>
-            <p class="text-muted">Bienvenido, {{ socio.primernombresocio }}. Aquí puedes gestionar tus ahorros y solicitar retiros.</p>
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="mb-3">💰 Mi Libreta de Ahorros</h2>
+                <p class="text-muted">Bienvenido, {{ socio.primernombresocio }}. Aquí puedes gestionar tus ahorros y solicitar retiros.</p>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'perfil' %}" class="btn btn-outline-secondary shadow-sm">
+                    <i class="fas fa-arrow-left me-1"></i> Volver al Perfil
+                </a>
+            </div>
         </div>
     </div>
 

@@ -594,13 +594,11 @@ def creditos(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        if action == 'solicitar_prestamo':
+        if action == 'solicitar_prestamo' and socio:
             monto_solicitado = request.POST.get('montoprestamosolicitado')
             numerocuotas = request.POST.get('numerocuotas')
             tasainteres = request.POST.get('tasainteres')
             fechavencimiento = request.POST.get('fechavencimiento')
-            
-            # NUEVO: Capturar los garantes seleccionados
             idgarante1 = request.POST.get('idgarante1')
             idgarante2 = request.POST.get('idgarante2')
             
@@ -613,33 +611,29 @@ def creditos(request):
                     interes_calculado = (Decimal(str(monto)) * tasa) / Decimal('100')
                     monto_total = Decimal(str(monto)) + interes_calculado
                     
-                    # NUEVO: Buscar los objetos Socio de los garantes (si el usuario escogió alguno)
                     garante1_obj = Socio.objects.filter(idsocio=idgarante1).first() if idgarante1 else None
                     garante2_obj = Socio.objects.filter(idsocio=idgarante2).first() if idgarante2 else None
                     
-                    try:
-                        Prestamo.objects.create(
-                            idsocio=socio,
-                            idgarante1=garante1_obj, # Guarda el garante 1
-                            idgarante2=garante2_obj, # Guarda el garante 2
-                            montoprestamosolicitado=monto,
-                            tasainteres=tasa,
-                            numerocuotas=cuotas,
-                            montototalpagar=monto_total,
-                            saldopendiente=monto_total,
-                            fechasolicitud=timezone.now(),
-                            fechavencimiento=fechavencimiento, 
-                            estadoprestamo='Solicitado'
-                        )
-                        messages.success(request, f"¡Tu solicitud por ${monto_solicitado} ha sido enviada!")
-                    except Exception as e:
-                        messages.error(request, f"Error al guardar en BD: {str(e)}")
+                    Prestamo.objects.create(
+                        idsocio=socio,
+                        idgarante1=garante1_obj,
+                        idgarante2=garante2_obj,
+                        montoprestamosolicitado=monto,
+                        tasainteres=tasa,
+                        numerocuotas=cuotas,
+                        montototalpagar=monto_total,
+                        saldopendiente=monto_total,
+                        fechasolicitud=timezone.now(),
+                        fechavencimiento=fechavencimiento, 
+                        estadoprestamo='Solicitado'
+                    )
+                    messages.success(request, f"¡Tu solicitud de crédito por ${monto_solicitado} ha sido enviada con éxito!")
                 else:
-                    messages.error(request, "Los valores numéricos deben ser mayores a 0.")
-            except ValueError:
-                messages.error(request, "Por favor ingresa datos numéricos válidos en el formulario.")
+                    messages.error(request, "El monto y las cuotas deben ser valores mayores a 0.")
+            except Exception as e:
+                messages.error(request, f"Ocurrió un error al procesar tu solicitud: {str(e)}")
                 
-        return redirect('creditos')
+            return redirect('perfil')
 
     contexto = {
         'socio': socio,
