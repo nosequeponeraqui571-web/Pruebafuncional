@@ -323,6 +323,22 @@ def dashboard(request):
                 # Como tu modelo no tiene el estado 'Rechazado', eliminamos la solicitud denegada
                 prestamo.delete()
                 messages.warning(request, "La solicitud de crédito ha sido rechazada y eliminada del sistema.")
+            elif action == 'crear_metodo_pago':
+                nombre = request.POST.get('nombremetodopago')
+                descripcion = request.POST.get('descripcionmetodopago')
+                url_cuenta = request.POST.get('urlmetodopago')
+                estado = request.POST.get('estadometodopago')
+                
+                try:
+                    MetodoPago.objects.create(
+                        nombremetodopago=nombre,
+                        descripcionmetodopago=descripcion,
+                        urlmetodopago=url_cuenta,
+                        estadometodopago=estado
+                    )
+                    messages.success(request, "Cuenta de destino registrada exitosamente.")
+                except Exception as e:
+                    messages.error(request, f"Error al registrar la cuenta: {str(e)}")
 
             elif action == 'eliminar_moneda':
                 UnidadMonetaria.objects.get(idunidadmonetaria=request.POST.get('id_moneda')).delete()
@@ -332,6 +348,7 @@ def dashboard(request):
         except Exception as e:
             messages.error(request, f"Error en la operación: {str(e)}")
         return redirect('dashboard')
+            
 
     contexto = {
         'total_socios': Socio.objects.count(), 'total_jugadores': Jugador.objects.count(), 'deuda_calle': Prestamo.objects.exclude(estadoprestamo='Liquidado').aggregate(total=Sum('saldopendiente'))['total'] or 0.00,
@@ -346,7 +363,7 @@ def dashboard(request):
         'sesiones_monitoreo': SesionJuego.objects.all().order_by('-fechainiciosesion')[:30], 'config_web': ConfiguracionWeb.objects.first(),
         'unidades_monetarias': UnidadMonetaria.objects.filter(estadomoneda=True),
         'todas_monedas': UnidadMonetaria.objects.all(),
-        
+        'metodos_pago': MetodoPago.objects.all().order_by('-idmetodopago'),
     }
     # Agrega esto al final de tus variables de contexto
     contexto['bingos_con_pozo'] = list(PartidaBingo.objects.filter(premiomaterial='[POZO_MAYOR]').values_list('idbingo_id', flat=True))
@@ -670,35 +687,44 @@ def pago(request):
 
     # Préstamos que aún tienen saldo pendiente
     prestamos_activos = Prestamo.objects.filter(idsocio=socio).exclude(estadoprestamo='Liquidado')
-    metodos_activos = MetodoPago.objects.filter(estadometodopago=True)
+    metodos_activos = MetodoPago.objects.filter(estadometodopago='Activo')
     historial_pagos = Pago.objects.filter(idprestamo__idsocio=socio).order_by('-fechapago')
 
     if request.method == 'POST':
         action = request.POST.get('action')
         
         if action == 'registrar_pago':
+            # CORRECCIÓN 1: Nombres exactos de los campos del formulario HTML
             id_prestamo = request.POST.get('id_prestamo')
-            id_metodo = request.POST.get('id_metodo')
-            monto_pago = request.POST.get('monto_pago')
+            id_metodo = request.POST.get('id_metodo_pago') 
+            monto_pagado = request.POST.get('monto_pagado')
+            
+            # CORRECCIÓN 2: Capturamos la imagen del comprobante
+            imagen_comprobante = request.FILES.get('imagencomprobante')
 
             try:
-                monto = float(monto_pago)
+                monto = float(monto_pagado)
                 # Validar que el préstamo pertenece al socio y existe
                 prestamo = prestamos_activos.filter(idprestamo=id_prestamo).first()
                 metodo = metodos_activos.filter(idmetodopago=id_metodo).first()
 
+                # CORRECCIÓN 3: Validamos que exista la imagen (es requerida por tu modelo)
                 if prestamo and metodo and monto > 0:
-                    Pago.objects.create(
-                        idprestamo=prestamo,
-                        idmetodopago=metodo,
-                        montopago=monto,
-                        fechapago=timezone.now(),
-                        estadopago='Pendiente' # Queda pendiente de verificación por el admin
-                    )
-                    messages.success(request, "Tu comprobante de pago ha sido registrado. Un administrador verificará la transacción pronto.")
+                    if imagen_comprobante:
+                        Pago.objects.create(
+                            idprestamo=prestamo,
+                            idmetodopago=metodo,
+                            montopagado=monto, # Coincide con el modelo
+                            comprobantepago=imagen_comprobante, # Se guarda la imagen
+                            fechapago=timezone.now(),
+                            estadopago='Pendiente' # Queda pendiente de verificación
+                        )
+                        messages.success(request, "Tu comprobante de pago ha sido registrado. Un administrador verificará la transacción pronto.")
+                    else:
+                        messages.error(request, "Es obligatorio subir una foto o captura del comprobante de pago.")
                 else:
                     messages.error(request, "Datos inválidos. Por favor, verifica el préstamo y el método de pago seleccionado.")
-            except ValueError:
+            except (ValueError, TypeError):
                 messages.error(request, "El monto ingresado no es válido.")
         
         return redirect('pago')
