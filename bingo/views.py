@@ -323,6 +323,40 @@ def dashboard(request):
                 # Como tu modelo no tiene el estado 'Rechazado', eliminamos la solicitud denegada
                 prestamo.delete()
                 messages.warning(request, "La solicitud de crédito ha sido rechazada y eliminada del sistema.")
+            # =======================================================
+            # NUEVO: VALIDAR O RECHAZAR PAGOS (AMORTIZACIONES)
+            # =======================================================
+            elif action == 'validar_pago':
+                id_pago = request.POST.get('id_pago')
+                pago_obj = get_object_or_404(Pago, idpago=id_pago)
+                
+                if pago_obj.estadopago == 'Pendiente':
+                    # Descontar el dinero del saldo pendiente del préstamo asociado
+                    prestamo = pago_obj.idprestamo
+                    prestamo.saldopendiente = prestamo.saldopendiente - pago_obj.montopagado
+                    
+                    # Si el saldo llega a cero o menos, el préstamo queda liquidado
+                    if prestamo.saldopendiente <= 0:
+                        prestamo.saldopendiente = 0
+                        prestamo.estadoprestamo = 'Liquidado'
+                    prestamo.save()
+
+                    # Actualizar el estado del pago a Validado
+                    pago_obj.estadopago = 'Validado'
+                    pago_obj.fechaconfirmacionadmin = timezone.now()
+                    pago_obj.save()
+                    
+                    messages.success(request, f"¡Pago de ${pago_obj.montopagado} validado! El saldo del crédito ha sido descontado correctamente.")
+                
+            elif action == 'rechazar_pago':
+                id_pago = request.POST.get('id_pago')
+                pago_obj = get_object_or_404(Pago, idpago=id_pago)
+                
+                if pago_obj.estadopago == 'Pendiente':
+                    pago_obj.estadopago = 'Rechazado'
+                    pago_obj.fechaconfirmacionadmin = timezone.now()
+                    pago_obj.save()
+                    messages.warning(request, "El abono reportado ha sido rechazado.")
             elif action == 'crear_metodo_pago':
                 nombre = request.POST.get('nombremetodopago')
                 descripcion = request.POST.get('descripcionmetodopago')
@@ -456,34 +490,67 @@ def cuenta_bancaria(request):
 @login_required
 def ahorro(request):
     """
-    Vista para que el Socio vea su libreta de ahorros y solicite retiros.
+    Vista para que el Socio vea su libreta de ahorros, reporte depósitos y solicite retiros.
     """
     socio = Socio.objects.filter(cisocio=request.user.username).first()
     if not socio:
         messages.warning(request, "Debes ser Socio de la cooperativa para acceder a la libreta de ahorros.")
         return redirect('inicio')
 
-    # Obtener todo el historial de ahorros de este socio
     historial_ahorros = Ahorro.objects.filter(idsocio=socio).order_by('-fechaahorro')
-    
-    # Calcular el total ahorrado sumando solo los depósitos confirmados/acreditados
     total_ahorrado = historial_ahorros.filter(estadoahorro='Acreditado').aggregate(total=Sum('montoahorro'))['total'] or Decimal('0.00')
+    
+    # NUEVO: Obtenemos las cuentas recaudadoras activas
+    metodos_activos = MetodoPago.objects.filter(estadometodopago='Activo')
 
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        # Acción para que el socio solicite sacar dinero de sus ahorros
-        if action == 'solicitar_retiro':
+        # 1. LOGICA PARA REPORTAR UN NUEVO AHORRO
+        if action == 'registrar_ahorro':
+            monto_ahorro = request.POST.get('monto_ahorro')
+            id_metodo = request.POST.get('id_metodo_pago')
+            imagen_comprobante = request.FILES.get('comprobanteahorro')
+            
+            try:
+                monto = float(monto_ahorro)
+                metodo = metodos_activos.filter(idmetodopago=id_metodo).first()
+                
+                # Asumimos el primer bingo disponible temporalmente si tu modelo exige idbingo
+                bingo_vinculado = Bingo.objects.exclude(estadobingo='Finalizado').first()
+                
+                if metodo and monto > 0 and imagen_comprobante:
+                    Ahorro.objects.create(
+                        idsocio=socio,
+                        idbingo=bingo_vinculado, # Requerido por tu modelo
+                        idmetodopago=metodo,
+                        tipoahorro='Voluntario',
+                        montoahorro=monto,
+                        comprobanteahorro=imagen_comprobante,
+                        fechaahorro=timezone.now(),
+                        estadoahorro='Pendiente' # Estado inicial hasta que admin lo valide
+                    )
+                    messages.success(request, "Tu depósito de ahorro ha sido reportado. Espera la confirmación del administrador.")
+                else:
+                    messages.error(request, "Datos inválidos o falta adjuntar el comprobante.")
+            except ValueError:
+                messages.error(request, "El monto ingresado no es válido.")
+                
+            return redirect('ahorro')
+
+        # 2. LOGICA PARA SOLICITAR RETIROS (Ya la tenías)
+        elif action == 'solicitar_retiro':
             monto_retiro = request.POST.get('monto_retiro')
             try:
                 monto_retiro = float(monto_retiro)
                 if 0 < monto_retiro <= float(total_ahorrado):
-                    # Se registra en negativo como retiro pendiente de aprobación
                     Ahorro.objects.create(
                         idsocio=socio,
+                        idbingo=Bingo.objects.first(), # Requerido
+                        tipoahorro='Voluntario',
                         montoahorro=-monto_retiro, 
                         fechaahorro=timezone.now(),
-                        estadoahorro='Retiro Pendiente'
+                        estadoahorro='Pendiente' # Adaptamos el estado
                     )
                     messages.success(request, f"Solicitud de retiro de ${monto_retiro} enviada a administración para su aprobación.")
                 else:
@@ -495,7 +562,8 @@ def ahorro(request):
     contexto = {
         'socio': socio,
         'historial_ahorros': historial_ahorros,
-        'total_ahorrado': total_ahorrado
+        'total_ahorrado': total_ahorrado,
+        'metodos_activos': metodos_activos # Enviamos las cuentas al template
     }
     return render(request, 'cuentas/ahorro.html', contexto)
 

@@ -1,0 +1,140 @@
+{% extends 'comunes/base.html' %}
+{% load static %}
+
+{% block title %}Mis Cuentas Bancarias - CoopBingo{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <!-- Incluimos alertas para mensajes de éxito/error -->
+    {% include 'componentes/alertas.html' %}
+
+    <!-- Encabezado con Botón de Retorno -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="mb-2 text-success fw-bold"><i class="fas fa-piggy-bank"></i> Mis Cuentas de Destino</h2>
+                <p class="text-muted">Registra las cuentas bancarias donde deseas recibir tus depósitos o liquidaciones de la cooperativa.</p>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'perfil' %}" class="btn btn-outline-secondary shadow-sm fw-bold">
+                    <i class="fas fa-arrow-left me-1"></i> Volver al Perfil
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- ========================================== -->
+        <!-- FORMULARIO: REGISTRAR NUEVA CUENTA         -->
+        <!-- ========================================== -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 border-top border-success border-4 h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold"><i class="fas fa-plus-circle text-success me-2"></i> Agregar Cuenta</h5>
+                </div>
+                <div class="card-body bg-light">
+                    <form method="POST" action="{% url 'cuenta_bancaria' %}">
+                        {% csrf_token %}
+                        <!-- Acción oculta capturada por views.py -->
+                        <input type="hidden" name="action" value="agregar_cuenta">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Banco o Entidad</label>
+                            <input type="text" class="form-control shadow-sm" name="banco" placeholder="Ej: Banco Pichincha, Guayaquil..." required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Tipo de Cuenta</label>
+                            <select class="form-select shadow-sm" name="tipo_cuenta" required>
+                                <option value="" disabled selected>-- Selecciona un tipo --</option>
+                                <option value="Ahorros">Ahorros</option>
+                                <option value="Corriente">Corriente</option>
+                                <option value="Billetera Movil">Billetera Móvil (DeUna, MiVecino)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Número de Cuenta / Teléfono</label>
+                            <input type="text" class="form-control shadow-sm font-monospace" name="numero_cuenta" placeholder="Ej: 2200001111" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-muted">Titular de la Cuenta</label>
+                            <!-- Se pre-llena con el nombre del socio para facilitar el registro -->
+                            <input type="text" class="form-control shadow-sm" name="titular" value="{{ socio.primernombresocio }} {{ socio.primerapellidosocio }}" required>
+                            <div class="form-text mt-1 text-info small">
+                                <i class="fas fa-info-circle"></i> Preferiblemente, la cuenta debe estar a tu nombre.
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm">
+                            <i class="fas fa-save me-2"></i> Guardar Cuenta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- LISTA DE CUENTAS REGISTRADAS DEL SOCIO     -->
+        <!-- ========================================== -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold"><i class="fas fa-list text-secondary me-2"></i> Mis Cuentas Guardadas</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-4">Banco / Entidad</th>
+                                    <th>Tipo</th>
+                                    <th>Número</th>
+                                    <th>Titular</th>
+                                    <th class="text-center pe-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cuenta in cuentas %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-dark">{{ cuenta.bancocuentabancaria }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border">
+                                            {{ cuenta.tipocuentabancaria }}
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace fw-bold text-primary">{{ cuenta.numerocuentabancaria }}</td>
+                                    <td class="small text-muted">{{ cuenta.titularcuentabancaria }}</td>
+                                    <td class="text-center pe-4">
+                                        <!-- Formulario para eliminar cuenta -->
+                                        <form method="POST" action="{% url 'cuenta_bancaria' %}" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="eliminar_cuenta">
+                                            <input type="hidden" name="id_cuenta" value="{{ cuenta.idcuentabancaria }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm border-0" 
+                                                    onclick="return confirm('¿Estás seguro de eliminar esta cuenta bancaria?');" 
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="fas fa-university fa-3x mb-3 text-light"></i><br>
+                                        Aún no has registrado ninguna cuenta bancaria.<br>
+                                        <small>Usa el formulario de la izquierda para agregar una.</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -181,7 +181,7 @@
                         </div>
                     </div>
 
-                    <div class="card-minimalista p-4 mb-4 border-start border-indigo border-4">
+                    <div class="card-minimalista p-4 border-start border-indigo border-4">
                         <h5 class="fw-bold mb-3">Perfiles de Juego Independientes (`Jugador`)</h5>
                         <div class="input-group input-group-sm mb-3">
                             <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
@@ -216,113 +216,61 @@
                             </table>
                         </div>
                     </div>
-                </div>
-
-                <!-- ============================================================================== -->
-                <!-- NUEVA TARJETA: CUENTAS DE DESTINO (Métodos de Pago Estilo Minimalista)         -->
-                <!-- ============================================================================== -->
-                <div class="card-minimalista p-4 mb-4 border-start border-dark border-4 mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold mb-0"></i> Cuentas Recaudadoras (Destino)</h5>
-                        <button class="btn btn-sm btn-dark shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearMetodoPago">
-                            <i class="fas fa-plus me-1"></i> Nueva Cuenta
-                        </button>
-                    </div>
-                    <div class="table-responsive table-scroll-container">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light text-secondary small">
-                                <tr>
-                                    <th class="ps-4">BANCO / ENTIDAD</th>
-                                    <th>TIPO DE CUENTA</th>
-                                    <th>NÚMERO / ENLACE</th>
-                                    <th>ESTADO</th>
-                                    <th class="text-end pe-4">ACCIÓN</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for mp in metodos_pago %}
-                                <tr>
-                                    <td class="ps-4 fw-bold text-dark">{{ mp.nombremetodopago }}</td>
-                                    <td><span class="badge bg-light text-dark border">{{ mp.descripcionmetodopago }}</span></td>
-                                    <td class="font-monospace text-muted">{{ mp.urlmetodopago }}</td>
-                                    <td>
-                                        {% if mp.estadometodopago == 'Activo' %}
-                                            <span class="badge bg-success">Activa</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Inactiva</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="eliminar_metodo_pago">
-                                            <input type="hidden" name="id_metodo" value="{{ mp.idmetodopago }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('¿Estás seguro de eliminar este método de pago?');" title="Eliminar cuenta">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="5" class="text-center text-muted py-4">No hay cuentas de destino registradas en el sistema.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- ============================================================================== -->
-                <!-- MODAL: REGISTRAR NUEVA CUENTA DESTINO                                          -->
-                <!-- ============================================================================== -->
-                <div class="modal fade" id="modalCrearMetodoPago" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-0 shadow">
-                            <div class="modal-header bg-dark text-white border-0">
-                                <h5 class="modal-title fw-bold"><i class="fas fa-university me-2"></i> Registrar Cuenta Destino</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <form method="POST" action="{% url 'dashboard' %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="crear_metodo_pago">
-                                <div class="modal-body p-4 bg-light">
-                                    <p class="text-muted small mb-3">Ingresa los datos de la cuenta bancaria o billetera móvil donde los socios enviarán el dinero.</p>
-                                    
-                                    <div class="form-floating mb-3">
-                                        <input type="text" class="form-control shadow-sm" name="nombremetodopago" required placeholder="Banco">
-                                        <label>Banco o Billetera (Ej: Banco Pichincha, DeUna)</label>
-                                    </div>
-                                    <div class="form-floating mb-3">
-                                        <select class="form-select shadow-sm" name="descripcionmetodopago" required>
-                                            <option value="Ahorros">Cuenta de Ahorros</option>
-                                            <option value="Corriente">Cuenta Corriente</option>
-                                            <option value="Billetera Móvil">Billetera Móvil (Número de celular)</option>
-                                        </select>
-                                        <label>Tipo de Cuenta</label>
-                                    </div>
-                                    <div class="form-floating mb-3">
-                                        <input type="text" class="form-control shadow-sm font-monospace" name="urlmetodopago" required placeholder="Número">
-                                        <label>Número de Cuenta o Teléfono</label>
-                                    </div>
-                                    <div class="form-floating">
-                                        <select class="form-select shadow-sm" name="estadometodopago" required>
-                                            <option value="Activo">Activo (Visible para depósitos)</option>
-                                            <option value="Inactivo">Inactivo (Oculto temporalmente)</option>
-                                        </select>
-                                        <label>Estado Inicial</label>
-                                    </div>
-                                </div>
-                                <div class="modal-footer border-0 bg-light">
-                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="submit" class="btn btn-dark px-4 fw-bold shadow-sm"><i class="fas fa-save me-1"></i> Guardar Cuenta</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                </div> <!-- CIERRE DE PESTAÑA COMUNIDAD -->
 
 
                 <div class="tab-pane fade" id="mod-finanzas" role="tabpanel">
                     
+                    <div class="card-minimalista p-4 mb-4 border-start border-dark border-4 mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0"><i class="fas fa-university text-primary me-2"></i> Cuentas Recaudadoras (Destino)</h5>
+                            <button class="btn btn-sm btn-dark shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearMetodoPago">
+                                <i class="fas fa-plus me-1"></i> Nueva Cuenta
+                            </button>
+                        </div>
+                        <div class="table-responsive table-scroll-container">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light text-secondary small">
+                                    <tr>
+                                        <th class="ps-4">BANCO / ENTIDAD</th>
+                                        <th>TIPO DE CUENTA</th>
+                                        <th>NÚMERO / ENLACE</th>
+                                        <th>ESTADO</th>
+                                        <th class="text-end pe-4">ACCIÓN</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mp in metodos_pago %}
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-dark">{{ mp.nombremetodopago }}</td>
+                                        <td><span class="badge bg-light text-dark border">{{ mp.descripcionmetodopago }}</span></td>
+                                        <td class="font-monospace text-muted">{{ mp.urlmetodopago }}</td>
+                                        <td>
+                                            {% if mp.estadometodopago == 'Activo' %}
+                                                <span class="badge bg-success">Activa</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactiva</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="eliminar_metodo_pago">
+                                                <input type="hidden" name="id_metodo" value="{{ mp.idmetodopago }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('¿Estás seguro de eliminar este método de pago?');" title="Eliminar cuenta">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No hay cuentas de destino registradas en el sistema.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div class="card-minimalista p-4 mb-4 border-start border-danger border-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="fw-bold mb-0">Créditos de la Cooperativa (`Prestamo`)</h5>
@@ -358,7 +306,6 @@
                                         <td class="text-danger fw-bold">${{ p.saldopendiente|floatformat:2 }}</td>
                                         <td>
                                             {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
-                                                <!-- BOTÓN COMPACTO -->
                                                 <button type="button" class="btn btn-warning btn-sm py-0 px-2 fw-bold shadow-sm" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalRevisarCredito{{ p.idprestamo }}">
                                                     <i class="fas fa-exclamation-circle"></i> Revisar
                                                 </button>
@@ -377,93 +324,6 @@
                         </div>
                     </div>
 
-
-                    {% for p in prestamos %}
-                        {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
-                        <div class="modal fade text-start" id="modalRevisarCredito{{ p.idprestamo }}" tabindex="-1" aria-hidden="true" style="white-space: normal;">
-                            <div class="modal-dialog modal-lg modal-dialog-centered">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-dark text-white">
-                                        <h5 class="modal-title"><i class="fas fa-search-dollar"></i> Revisión de Crédito #{{ p.idprestamo }}</h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body text-body" style="font-size: 1rem;">
-                                        <div class="row mb-3">
-                                            <div class="col-md-6">
-                                                <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-user"></i> Datos del Socio</h6>
-                                                <ul class="list-unstyled">
-                                                    <li class="mb-1"><strong>Nombre:</strong> {{ p.idsocio.primernombresocio }} {{ p.idsocio.primerapellidosocio }}</li>
-                                                    <li class="mb-1"><strong>Cédula:</strong> {{ p.idsocio.cisocio }}</li>
-                                                    <li class="mb-1"><strong>Teléfono:</strong> {{ p.idsocio.telefonosocio|default:"No registrado" }}</li>
-                                                    <li class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">{{ p.idsocio.estadosocio }}</span></li>
-                                                </ul>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-file-invoice-dollar"></i> Detalles del Crédito</h6>
-                                                <ul class="list-unstyled">
-                                                    <li class="mb-1"><strong>Monto Solicitado:</strong> <span class="fw-bold">${{ p.montoprestamosolicitado|floatformat:2 }}</span></li>
-                                                    <li class="mb-1"><strong>Cuotas a pagar:</strong> {{ p.numerocuotas }} meses</li>
-                                                    <li class="mb-1"><strong>Tasa Aplicada:</strong> {{ p.tasainteres }}%</li>
-                                                    <li class="mb-1"><strong>Total con Interés:</strong> <span class="text-danger fw-bold">${{ p.montototalpagar|floatformat:2 }}</span></li>
-                                                    <li class="mb-1"><strong>Vencimiento:</strong> {{ p.fechavencimiento|date:"d M Y" }}</li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                        
-                                        <h6 class="text-danger border-bottom pb-2 mt-2 fw-bold"><i class="fas fa-users"></i> Garantías Presentadas</h6>
-                                        <div class="row bg-light border p-2 rounded mb-3 mx-0">
-                                            <div class="col-md-6">
-                                                <strong>Garante 1:</strong><br>
-                                                {% if p.idgarante1 %}
-                                                    {{ p.idgarante1.primernombresocio }} {{ p.idgarante1.primerapellidosocio }} <br>
-                                                    <small class="text-muted">CI: {{ p.idgarante1.cisocio }}</small>
-                                                {% else %}
-                                                    <span class="text-muted fst-italic">Sin garante principal</span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="col-md-6">
-                                                <strong>Garante 2:</strong><br>
-                                                {% if p.idgarante2 %}
-                                                    {{ p.idgarante2.primernombresocio }} {{ p.idgarante2.primerapellidosocio }} <br>
-                                                    <small class="text-muted">CI: {{ p.idgarante2.cisocio }}</small>
-                                                {% else %}
-                                                    <span class="text-muted fst-italic">Sin garante secundario</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        <div class="alert alert-info py-2 small mb-0">
-                                            <i class="fas fa-info-circle"></i> Al aprobar el crédito, su estado cambiará a <strong>Aprobado</strong> y el socio podrá empezar a abonar cuotas.
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer bg-light">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                        
-                                        <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="rechazar_prestamo">
-                                            <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
-                                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('¿Estás seguro de rechazar y eliminar esta solicitud?');">
-                                                <i class="fas fa-times"></i> Rechazar
-                                            </button>
-                                        </form>
-
-                                        <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="aprobar_prestamo">
-                                            <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
-                                            <button type="submit" class="btn btn-success">
-                                                <i class="fas fa-check"></i> Aprobar Crédito
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-
-
                     <div class="row g-4 mb-4">
                         <div class="col-xl-7">
                             <div class="card-minimalista p-4 h-100 border-start border-success border-4">
@@ -473,22 +333,32 @@
                                     <input type="text" id="search-pagos" class="form-control bg-transparent border-start-0" placeholder="Buscar por referencia o canal..." onkeyup="filterTable('search-pagos', 'table-pagos')">
                                 </div>
                                 <div class="table-responsive table-scroll-container">
-                                    <table class="table align-middle table-sm" id="table-pagos" style="font-size:0.85rem;">
+                                    <table class="table align-middle table-sm table-hover" id="table-pagos" style="font-size:0.85rem;">
                                         <thead>
                                             <tr class="text-muted">
-                                                <th>ID Socio</th>
+                                                <th>Cédula del Socio</th>
                                                 <th>Monto</th>
                                                 <th>Canal</th>
-                                                <th>Estado</th>
+                                                <th class="text-center">Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for py in pagos %}
                                             <tr>
-                                                <td class="font-monospace fw-bold">{{ py.idprestamo.idsocio.cisocio|default:"S/N" }}</td>
+                                                <td class="font-monospace fw-bold text-dark">{{ py.idprestamo.idsocio.cisocio|default:"S/N" }}</td>
                                                 <td class="fw-bold text-success">${{ py.montopagado }}</td>
                                                 <td>{{ py.idmetodopago.nombremetodopago }}</td>
-                                                <td><span class="badge {% if py.estadopago == 'Validado' %}bg-success-subtle text-success{% else %}bg-warning text-dark{% endif %}">{{ py.estadopago }}</span></td>
+                                                <td class="text-center text-nowrap">
+                                                    {% if py.estadopago == 'Pendiente' %}
+                                                        <button class="btn btn-sm btn-warning fw-bold text-dark px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRevisarPago{{ py.idpago }}">
+                                                            <i class="fas fa-exclamation-circle me-1"></i> Revisar
+                                                        </button>
+                                                    {% elif py.estadopago == 'Validado' %}
+                                                        <span class="badge bg-light text-success border border-success px-3 py-1"><i class="fas fa-check-circle"></i> Validado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-light text-danger border border-danger px-3 py-1"><i class="fas fa-times-circle"></i> Rechazado</span>
+                                                    {% endif %}
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -513,9 +383,9 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> <!-- CIERRE DEL ROW DE AMORTIZACIONES Y AHORROS -->
 
-                    <div class="card-minimalista p-4 mb-4 border-start border-warning border-4">
+                    <div class="card-minimalista p-4 border-start border-warning border-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="fw-bold mb-0">Control de Caja Semanal (`AporteSemanal`)</h5>
                             <a href="{% url 'reporte_caja_semanal_pdf' %}" target="_blank" class="btn btn-sm btn-warning shadow-sm fw-bold text-dark">
@@ -547,7 +417,7 @@
                             </table>
                         </div>
                     </div>
-                </div>
+                </div> <!-- CIERRE DE PESTAÑA FINANZAS -->
 
                 <div class="tab-pane fade" id="mod-bingos" role="tabpanel">
                     
@@ -723,7 +593,6 @@
                                     </button>
                                 </div>
                                 
-                                <!-- NUEVO FILTRO INTERACTIVO (Sustituye al select) -->
                                 <div class="mb-3 dropdown">
                                     <button class="btn btn-sm btn-light fw-bold border w-100 text-start d-flex justify-content-between align-items-center" type="button" id="dropdownRondasBingo" data-bs-toggle="dropdown" aria-expanded="false">
                                         <span id="texto-filtro-bingo">🌟 Mostrar Todas las Rondas</span>
@@ -742,7 +611,6 @@
                                         </div>
                                     </ul>
                                 </div>
-                                <!-- FIN DEL NUEVO FILTRO -->
 
                                 <div class="table-responsive table-scroll-container">
                                     <table class="table table-sm align-middle" id="table-rondas" style="font-size:0.85rem;">
@@ -807,7 +675,6 @@
                                                         <input type="hidden" name="id_partida" value="{{ pt.idpartidabingo }}">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger border-0 p-1 px-2"><i class="fas fa-trash-alt"></i></button>
                                                     </form>
-                                                    
                                                 </td>
                                             </tr>
                                             {% endfor %}
@@ -833,7 +700,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> <!-- CIERRE DE PESTAÑA BINGOS -->
 
                 <div class="tab-pane fade" id="mod-cartones" role="tabpanel">
                     <div class="row g-4 mb-4">
@@ -920,7 +787,7 @@
                         </div>
                     </div>
 
-                    <div class="card-minimalista p-4 mb-4 border-start border-success border-4">
+                    <div class="card-minimalista p-4 border-start border-success border-4">
                         <h5 class="fw-bold mb-3">Asignación por Rondas (`CartonPartidaBingo`)</h5>
                         <div class="table-responsive table-scroll-container">
                             <table class="table align-middle table-sm">
@@ -949,7 +816,7 @@
                             </table>
                         </div>
                     </div>
-                </div>
+                </div> <!-- CIERRE DE PESTAÑA CARTONES -->
 
                 <div class="tab-pane fade" id="mod-sistema" role="tabpanel">
                     
@@ -1079,7 +946,7 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-minimalista p-4 mb-4 border-start border-dark border-4">
+                    <div class="card-minimalista p-4 border-start border-dark border-4">
                         <h5 class="fw-bold mb-4"><i class="fas fa-globe me-2 text-primary"></i> Configuración del Sitio Web (Página de Inicio)</h5>
                         <form method="post" action="{% url 'dashboard' %}" enctype="multipart/form-data">
                             {% csrf_token %}
@@ -1121,7 +988,170 @@
                             </div>
                         </form>
                     </div>
+                </div> <!-- CIERRE DE PESTAÑA SISTEMA -->
+            </div> <!-- CIERRE DEL TAB CONTENT GLOBAL -->
+        </div> <!-- CIERRE DEL COL 9 -->
+    </div> <!-- CIERRE DEL ROW PRINCIPAL -->
+</div> <!-- CIERRE DEL CONTAINER -->
 
+<!-- ========================================== -->
+<!-- ZONA SEGURA DE MODALES GLOBALES            -->
+<!-- (Ubicados aquí para no romper el CSS)      -->
+<!-- ========================================== -->
+
+<!-- Modales Revisar Crédito -->
+{% for p in prestamos %}
+    {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
+    <div class="modal fade text-start" id="modalRevisarCredito{{ p.idprestamo }}" tabindex="-1" aria-hidden="true" style="white-space: normal;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="fas fa-search-dollar"></i> Revisión de Crédito #{{ p.idprestamo }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-body" style="font-size: 1rem;">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-user"></i> Datos del Socio</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-1"><strong>Nombre:</strong> {{ p.idsocio.primernombresocio }} {{ p.idsocio.primerapellidosocio }}</li>
+                                <li class="mb-1"><strong>Cédula:</strong> {{ p.idsocio.cisocio }}</li>
+                                <li class="mb-1"><strong>Teléfono:</strong> {{ p.idsocio.telefonosocio|default:"No registrado" }}</li>
+                                <li class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">{{ p.idsocio.estadosocio }}</span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-danger border-bottom pb-2 fw-bold"><i class="fas fa-file-invoice-dollar"></i> Detalles del Crédito</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-1"><strong>Monto Solicitado:</strong> <span class="fw-bold">${{ p.montoprestamosolicitado|floatformat:2 }}</span></li>
+                                <li class="mb-1"><strong>Cuotas a pagar:</strong> {{ p.numerocuotas }} meses</li>
+                                <li class="mb-1"><strong>Tasa Aplicada:</strong> {{ p.tasainteres }}%</li>
+                                <li class="mb-1"><strong>Total con Interés:</strong> <span class="text-danger fw-bold">${{ p.montototalpagar|floatformat:2 }}</span></li>
+                                <li class="mb-1"><strong>Vencimiento:</strong> {{ p.fechavencimiento|date:"d M Y" }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h6 class="text-danger border-bottom pb-2 mt-2 fw-bold"><i class="fas fa-users"></i> Garantías Presentadas</h6>
+                    <div class="row bg-light border p-2 rounded mb-3 mx-0">
+                        <div class="col-md-6">
+                            <strong>Garante 1:</strong><br>
+                            {% if p.idgarante1 %}
+                                {{ p.idgarante1.primernombresocio }} {{ p.idgarante1.primerapellidosocio }} <br>
+                                <small class="text-muted">CI: {{ p.idgarante1.cisocio }}</small>
+                            {% else %}
+                                <span class="text-muted fst-italic">Sin garante principal</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Garante 2:</strong><br>
+                            {% if p.idgarante2 %}
+                                {{ p.idgarante2.primernombresocio }} {{ p.idgarante2.primerapellidosocio }} <br>
+                                <small class="text-muted">CI: {{ p.idgarante2.cisocio }}</small>
+                            {% else %}
+                                <span class="text-muted fst-italic">Sin garante secundario</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 small mb-0">
+                        <i class="fas fa-info-circle"></i> Al aprobar el crédito, su estado cambiará a <strong>Aprobado</strong> y el socio podrá empezar a abonar cuotas.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    
+                    <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="rechazar_prestamo">
+                        <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
+                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('¿Estás seguro de rechazar y eliminar esta solicitud?');">
+                            <i class="fas fa-times"></i> Rechazar
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{% url 'dashboard' %}" class="d-inline m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="aprobar_prestamo">
+                        <input type="hidden" name="id_prestamo" value="{{ p.idprestamo }}">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check"></i> Aprobar Crédito
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+<!-- Modales Revisar Pagos -->
+{% for py in pagos %}
+    {% if py.estadopago == 'Pendiente' %}
+    <div class="modal fade" id="modalRevisarPago{{ py.idpago }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white border-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-search-dollar me-2"></i> Revisión de Abono #{{ py.idpago }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                            <p class="mb-1 small"><strong>Socio:</strong> {{ py.idprestamo.idsocio.primernombresocio }} {{ py.idprestamo.idsocio.primerapellidosocio }}</p>
+                            <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ py.idprestamo.idsocio.cisocio }}</span></p>
+                            <p class="mb-1 small"><strong>Teléfono:</strong> {{ py.idprestamo.idsocio.telefonopersonalsocio }}</p>
+                            
+                            <h6 class="fw-bold text-primary mt-4 mb-3"><i class="fas fa-file-invoice"></i> Detalle del Pago</h6>
+                            <p class="mb-1 small"><strong>Préstamo ID:</strong> #{{ py.idprestamo.idprestamo }}</p>
+                            <p class="mb-1 small"><strong>Saldo Antes de Abonar:</strong> <span class="text-danger fw-bold">${{ py.idprestamo.saldopendiente }}</span></p>
+                            <p class="mb-1 small"><strong>Monto a Abonar:</strong> <span class="text-success fw-bold fs-6">${{ py.montopagado }}</span></p>
+                            <p class="mb-1 small"><strong>Canal:</strong> {{ py.idmetodopago.nombremetodopago }}</p>
+                            <p class="mb-0 small"><strong>Fecha:</strong> {{ py.fechapago|date:"d/m/Y, H:i" }}</p>
+                        </div>
+                        <div class="col-md-6 text-center border-start border-2">
+                            <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante Adjunto</h6>
+                            {% if py.comprobantepago %}
+                                <a href="{{ py.comprobantepago.url }}" target="_blank" title="Abrir en pestaña completa">
+                                    <img src="{{ py.comprobantepago.url }}" class="img-fluid rounded shadow-sm border border-secondary" alt="Comprobante" style="max-height: 250px; object-fit: cover;">
+                                </a>
+                                <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic en la imagen para ampliar</p>
+                            {% else %}
+                                <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                    <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
+                                    <span class="small fw-bold">El socio no adjuntó imagen</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="alert alert-warning border-warning mt-4 mb-0 small">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Aviso:</strong> Si validas este pago, el saldo del préstamo se reducirá automáticamente. Esta acción no se puede deshacer.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white d-flex justify-content-between">
+                    <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="rechazar_pago">
+                        <input type="hidden" name="id_pago" value="{{ py.idpago }}">
+                        <button type="submit" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas RECHAZAR este pago? El saldo del socio se mantendrá intacto.');">
+                            <i class="fas fa-times me-1"></i> Rechazar Pago
+                        </button>
+                    </form>
+                    <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="validar_pago">
+                        <input type="hidden" name="id_pago" value="{{ py.idpago }}">
+                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm" onclick="return confirm('¿Confirmas que recibiste los ${{ py.montopagado }} en la cuenta? Se descontará del saldo del socio.');">
+                            <i class="fas fa-check me-1"></i> Validar y Descontar Saldo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
 
 <div class="modal fade" id="modalNuevaPartida" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

@@ -505,7 +505,20 @@ class Ahorro(models.Model):
         choices=ESTADO_AHORRO_CHOICES, 
         verbose_name="Estado del Ahorro"
     )
-
+    idmetodopago = models.ForeignKey(
+        'MetodoPago', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        db_column='idmetodopago',
+        verbose_name="Cuenta de Destino"
+    )
+    comprobanteahorro = models.FileField(
+        upload_to='ahorro/comprobantes/', 
+        null=True, 
+        blank=True, 
+        verbose_name="Comprobante de Ahorro"
+    )
     def __str__(self):
         return f"Ahorro #{self.idahorro} - Socio {self.idsocio_id} (${self.montoahorro})"
 
