@@ -368,24 +368,114 @@
                         </div>
                         
                         <div class="col-xl-5">
-                            <div class="card-minimalista p-4 h-100 border-start border-info border-4">
-                                <h6 class="fw-bold text-secondary mb-3">Fondos de Ahorro (`Ahorro`)</h6>
+                            <div class="card-minimalista p-4 mb-4 border-start border-info border-4 h-100">
+                                <h5 class="fw-bold mb-3">Validación de Ahorros (`Ahorro`)</h5>
                                 <div class="table-responsive table-scroll-container">
-                                    {% for a in ahorros %}
-                                    <div class="border-bottom py-2 small">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="fw-semibold">{{ a.idsocio.primerapellidosocio }}</span>
-                                            <span class="text-success fw-bold">+${{ a.montoahorro }}</span>
-                                        </div>
-                                        <span class="text-muted" style="font-size:0.7rem;">Tipo: {{ a.tipoahorro }}</span>
-                                    </div>
-                                    {% endfor %}
+                                    <table class="table align-middle table-sm table-hover" style="font-size:0.85rem;">
+                                        <thead>
+                                            <tr class="text-muted">
+                                                <th>Socio</th>
+                                                <th>Monto</th>
+                                                <th class="text-center">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for a in ahorros %}
+                                            <tr>
+                                                <td class="fw-bold text-dark">{{ a.idsocio.primerapellidosocio }}</td>
+                                                <td class="fw-bold text-info">+${{ a.montoahorro }}</td>
+                                                <td class="text-center text-nowrap">
+                                                    {% if a.estadoahorro == 'Pendiente' %}
+                                                        <button class="btn btn-sm btn-warning fw-bold text-dark px-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRevisarAhorro{{ a.idahorro }}">
+                                                            <i class="fas fa-search"></i> Revisar
+                                                        </button>
+                                                    {% elif a.estadoahorro == 'Acreditado' %}
+                                                        <span class="badge bg-light text-success border border-success px-2 py-1"><i class="fas fa-check-circle"></i> Acreditado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-light text-secondary border border-secondary px-2 py-1">{{ a.estadoahorro }}</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="3" class="text-center text-muted py-4">No hay ahorros por revisar.</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
-                    </div> <!-- CIERRE DEL ROW DE AMORTIZACIONES Y AHORROS -->
+                    </div>
 
-                    <div class="card-minimalista p-4 border-start border-warning border-4">
+                    <!-- ========================================== -->
+                    <!-- MODALS DE REVISIÓN DE AHORROS              -->
+                    <!-- ========================================== -->
+                    {% for a in ahorros %}
+                        {% if a.estadoahorro == 'Pendiente' %}
+                        <div class="modal fade" id="modalRevisarAhorro{{ a.idahorro }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-dark text-white border-0">
+                                        <h5 class="modal-title fw-bold"><i class="fas fa-piggy-bank me-2"></i> Validar Depósito de Ahorro</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4 bg-light">
+                                        <div class="row g-4">
+                                            <!-- Info del Socio -->
+                                            <div class="col-md-6">
+                                                <h6 class="fw-bold text-info mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                                                <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
+                                                <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
+                                                
+                                                <h6 class="fw-bold text-info mt-4 mb-3"><i class="fas fa-money-bill-wave"></i> Detalle del Depósito</h6>
+                                                <p class="mb-1 small"><strong>Monto a Ahorrar:</strong> <span class="text-info fw-bold fs-6">${{ a.montoahorro }}</span></p>
+                                                <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
+                                                <p class="mb-0 small"><strong>Fecha:</strong> {{ a.fechaahorro|date:"d M Y, H:i" }}</p>
+                                            </div>
+                                            <!-- Imagen -->
+                                            <div class="col-md-6 text-center border-start border-2">
+                                                <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante</h6>
+                                                {% if a.comprobanteahorro %}
+                                                    <a href="{{ a.comprobanteahorro.url }}" target="_blank">
+                                                        <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" style="max-height: 250px; object-fit: cover;">
+                                                    </a>
+                                                    <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
+                                                {% else %}
+                                                    <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                                        <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
+                                                        <span class="small fw-bold">Sin imagen</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0 bg-white d-flex justify-content-between">
+                                        <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="rechazar_ahorro">
+                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                                            <button type="submit" class="btn btn-outline-danger fw-bold">
+                                                <i class="fas fa-times me-1"></i> Rechazar
+                                            </button>
+                                        </form>
+
+                                        <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="validar_ahorro">
+                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                                            <button type="submit" class="btn btn-info text-white fw-bold px-4 shadow-sm">
+                                                <i class="fas fa-check me-1"></i> Validar y Acreditar
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="card-minimalista p-4 mb-4 border-start border-warning border-4 mt-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="fw-bold mb-0">Control de Caja Semanal (`AporteSemanal`)</h5>
                             <a href="{% url 'reporte_caja_semanal_pdf' %}" target="_blank" class="btn btn-sm btn-warning shadow-sm fw-bold text-dark">

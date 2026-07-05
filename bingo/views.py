@@ -347,7 +347,7 @@ def dashboard(request):
                     pago_obj.save()
                     
                     messages.success(request, f"¡Pago de ${pago_obj.montopagado} validado! El saldo del crédito ha sido descontado correctamente.")
-                
+            
             elif action == 'rechazar_pago':
                 id_pago = request.POST.get('id_pago')
                 pago_obj = get_object_or_404(Pago, idpago=id_pago)
@@ -373,7 +373,23 @@ def dashboard(request):
                     messages.success(request, "Cuenta de destino registrada exitosamente.")
                 except Exception as e:
                     messages.error(request, f"Error al registrar la cuenta: {str(e)}")
+            elif action == 'validar_ahorro':
+                id_ahorro = request.POST.get('id_ahorro')
+                if id_ahorro:
+                    ahorro_obj = get_object_or_404(Ahorro, idahorro=id_ahorro)
+                    ahorro_obj.estadoahorro = 'Acreditado'
+                    ahorro_obj.save()
+                    messages.success(request, f"¡Depósito por ${ahorro_obj.montoahorro} verificado y acreditado a la cuenta del socio!")
+                return redirect('dashboard')
 
+            elif action == 'rechazar_ahorro':
+                id_ahorro = request.POST.get('id_ahorro')
+                if id_ahorro:
+                    ahorro_obj = get_object_or_404(Ahorro, idahorro=id_ahorro)
+                    ahorro_obj.estadoahorro = 'Rechazado'
+                    ahorro_obj.save()
+                    messages.warning(request, "El reporte de ahorro fue rechazado por inconsistencias en el comprobante.")
+                return redirect('dashboard')
             elif action == 'eliminar_moneda':
                 UnidadMonetaria.objects.get(idunidadmonetaria=request.POST.get('id_moneda')).delete()
                 messages.success(request, "Divisa eliminada del sistema.")
