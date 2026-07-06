@@ -377,9 +377,15 @@ def dashboard(request):
                 id_ahorro = request.POST.get('id_ahorro')
                 if id_ahorro:
                     ahorro_obj = get_object_or_404(Ahorro, idahorro=id_ahorro)
+                    
+                    # Si es un retiro (monto negativo), el Admin debe subir el comprobante
+                    if ahorro_obj.montoahorro < 0:
+                        if 'comprobante_admin' in request.FILES:
+                            ahorro_obj.comprobanteahorro = request.FILES['comprobante_admin']
+                            
                     ahorro_obj.estadoahorro = 'Acreditado'
                     ahorro_obj.save()
-                    messages.success(request, f"¡Depósito por ${ahorro_obj.montoahorro} verificado y acreditado a la cuenta del socio!")
+                    messages.success(request, f"¡Transacción validada y completada!")
                 return redirect('dashboard')
 
             elif action == 'rechazar_ahorro':
@@ -556,24 +562,24 @@ def ahorro(request):
 
         # 2. LOGICA PARA SOLICITAR RETIROS (Ya la tenías)
         elif action == 'solicitar_retiro':
-            monto_retiro = request.POST.get('monto_retiro')
-            try:
-                monto_retiro = float(monto_retiro)
-                if 0 < monto_retiro <= float(total_ahorrado):
-                    Ahorro.objects.create(
-                        idsocio=socio,
-                        idbingo=Bingo.objects.first(), # Requerido
-                        tipoahorro='Voluntario',
-                        montoahorro=-monto_retiro, 
-                        fechaahorro=timezone.now(),
-                        estadoahorro='Pendiente' # Adaptamos el estado
-                    )
-                    messages.success(request, f"Solicitud de retiro de ${monto_retiro} enviada a administración para su aprobación.")
-                else:
-                    messages.error(request, "Monto inválido o fondos insuficientes en tu libreta.")
-            except ValueError:
-                messages.error(request, "Por favor ingresa un monto numérico válido.")
-            return redirect('ahorro')
+                monto_retiro = request.POST.get('monto_retiro')
+                try:
+                    monto = abs(float(monto_retiro)) # Aseguramos que sea positivo para el cálculo
+                    total_ahorrado_actual = Ahorro.objects.filter(idsocio=socio, estadoahorro__in=['Acreditado', 'Activo']).aggregate(total=Sum('montoahorro'))['total'] or 0.00
+                    
+                    if 0 < monto <= float(total_ahorrado_actual):
+                        Ahorro.objects.create(
+                            idsocio=socio,
+                            montoahorro=-monto, # Se guarda como NEGATIVO porque es una resta
+                            estadoahorro='Pendiente',
+                            fechaahorro=timezone.now()
+                        )
+                        messages.success(request, f"Solicitud de retiro por ${monto} enviada. El administrador te transferirá pronto.")
+                    else:
+                        messages.error(request, "El monto supera tu saldo disponible.")
+                except ValueError:
+                    messages.error(request, "Monto inválido.")
+                return redirect('ahorro')
 
     contexto = {
         'socio': socio,

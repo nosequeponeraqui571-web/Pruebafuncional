@@ -325,7 +325,7 @@
                     </div>
 
                     <div class="row g-4 mb-4">
-                        <div class="col-xl-7">
+                        <div class="col-x2-7">
                             <div class="card-minimalista p-4 h-100 border-start border-success border-4">
                                 <h5 class="fw-bold mb-3">Validación de Amortizaciones (`Pago`)</h5>
                                 <div class="input-group input-group-sm mb-3">
@@ -367,39 +367,44 @@
                             </div>
                         </div>
                         
-                        <div class="col-xl-5">
-                            <div class="card-minimalista p-4 mb-4 border-start border-info border-4 h-100">
-                                <h5 class="fw-bold mb-3">Validación de Ahorros (`Ahorro`)</h5>
+                        <div class="col-x2-7">
+                            <div class="card-minimalista p-4 mb-4 border-start border-info border-4">
+                                <h6 class="fw-bold text-secondary mb-3">Fondos de Ahorro (`Ahorro`)</h6>
                                 <div class="table-responsive table-scroll-container">
                                     <table class="table align-middle table-sm table-hover" style="font-size:0.85rem;">
                                         <thead>
                                             <tr class="text-muted">
                                                 <th>Socio</th>
-                                                <th>Monto</th>
-                                                <th class="text-center">Estado</th>
+                                                <th>Transacción</th>
+                                                <th class="text-center">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for a in ahorros %}
                                             <tr>
-                                                <td class="fw-bold text-dark">{{ a.idsocio.primerapellidosocio }}</td>
-                                                <td class="fw-bold text-info">+${{ a.montoahorro }}</td>
-                                                <td class="text-center text-nowrap">
+                                                <td class="fw-bold text-dark">{{ a.idsocio.primerapellidosocio }}, {{ a.idsocio.primernombresocio }}</td>
+                                                <td>
+                                                    {% if a.montoahorro > 0 %}
+                                                        <span class="text-success fw-bold"><i class="fas fa-arrow-down"></i> +${{ a.montoahorro }}</span>
+                                                    {% else %}
+                                                        <!-- Formatea el número para quitar el signo negativo visualmente -->
+                                                        <span class="text-danger fw-bold"><i class="fas fa-arrow-up"></i> -${{ a.montoahorro|stringformat:".2f" }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
                                                     {% if a.estadoahorro == 'Pendiente' %}
-                                                        <button class="btn btn-sm btn-warning fw-bold text-dark px-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRevisarAhorro{{ a.idahorro }}">
+                                                        <button class="btn btn-sm btn-warning fw-bold text-dark px-2 shadow-sm w-100" data-bs-toggle="modal" data-bs-target="#modalRevisarAhorro{{ a.idahorro }}">
                                                             <i class="fas fa-search"></i> Revisar
                                                         </button>
                                                     {% elif a.estadoahorro == 'Acreditado' %}
-                                                        <span class="badge bg-light text-success border border-success px-2 py-1"><i class="fas fa-check-circle"></i> Acreditado</span>
+                                                        <span class="badge bg-light text-success border border-success px-2 py-1 w-100"><i class="fas fa-check-circle"></i> Acreditado</span>
                                                     {% else %}
-                                                        <span class="badge bg-light text-secondary border border-secondary px-2 py-1">{{ a.estadoahorro }}</span>
+                                                        <span class="badge bg-light text-secondary border border-secondary px-2 py-1 w-100">{{ a.estadoahorro }}</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>
                                             {% empty %}
-                                            <tr>
-                                                <td colspan="3" class="text-center text-muted py-4">No hay ahorros por revisar.</td>
-                                            </tr>
+                                            <tr><td colspan="3" class="text-center text-muted py-4">No hay transacciones recientes.</td></tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
@@ -413,62 +418,91 @@
                     <!-- ========================================== -->
                     {% for a in ahorros %}
                         {% if a.estadoahorro == 'Pendiente' %}
+                        <!-- Formulario invisible para el botón de rechazar -->
+                        <form method="POST" action="{% url 'dashboard' %}" id="form-rechazar-ahorro-{{ a.idahorro }}" class="d-none">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="rechazar_ahorro">
+                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                        </form>
+
                         <div class="modal fade" id="modalRevisarAhorro{{ a.idahorro }}" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered modal-lg">
                                 <div class="modal-content border-0 shadow">
-                                    <div class="modal-header bg-dark text-white border-0">
-                                        <h5 class="modal-title fw-bold"><i class="fas fa-piggy-bank me-2"></i> Validar Depósito de Ahorro</h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body p-4 bg-light">
-                                        <div class="row g-4">
-                                            <!-- Info del Socio -->
-                                            <div class="col-md-6">
-                                                <h6 class="fw-bold text-info mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
-                                                <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
-                                                <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
-                                                
-                                                <h6 class="fw-bold text-info mt-4 mb-3"><i class="fas fa-money-bill-wave"></i> Detalle del Depósito</h6>
-                                                <p class="mb-1 small"><strong>Monto a Ahorrar:</strong> <span class="text-info fw-bold fs-6">${{ a.montoahorro }}</span></p>
-                                                <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
-                                                <p class="mb-0 small"><strong>Fecha:</strong> {{ a.fechaahorro|date:"d M Y, H:i" }}</p>
-                                            </div>
-                                            <!-- Imagen -->
-                                            <div class="col-md-6 text-center border-start border-2">
-                                                <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante</h6>
-                                                {% if a.comprobanteahorro %}
-                                                    <a href="{{ a.comprobanteahorro.url }}" target="_blank">
-                                                        <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" style="max-height: 250px; object-fit: cover;">
-                                                    </a>
-                                                    <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
+                                    <!-- FORM PRINCIPAL QUE ENVUELVE EL MODAL BODY PARA PODER SUBIR ARCHIVOS -->
+                                    <form method="POST" action="{% url 'dashboard' %}" enctype="multipart/form-data" class="m-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="validar_ahorro">
+                                        <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                                        
+                                        <div class="modal-header bg-dark text-white border-0">
+                                            <h5 class="modal-title fw-bold">
+                                                {% if a.montoahorro > 0 %}
+                                                    <i class="fas fa-piggy-bank me-2 text-info"></i> Validar Depósito de Ahorro
                                                 {% else %}
-                                                    <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
-                                                        <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
-                                                        <span class="small fw-bold">Sin imagen</span>
-                                                    </div>
+                                                    <i class="fas fa-hand-holding-usd me-2 text-warning"></i> Procesar Retiro de Socio
                                                 {% endif %}
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        
+                                        <div class="modal-body p-4 bg-light">
+                                            <div class="row g-4">
+                                                <!-- Info del Socio -->
+                                                <div class="col-md-6">
+                                                    <h6 class="fw-bold text-primary mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                                                    <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
+                                                    <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
+                                                    <p class="mb-1 small"><strong>Teléfono:</strong> {{ a.idsocio.telefonopersonalsocio }}</p>
+                                                    
+                                                    <h6 class="fw-bold text-primary mt-4 mb-3"><i class="fas fa-exchange-alt"></i> Detalle de Transacción</h6>
+                                                    {% if a.montoahorro > 0 %}
+                                                        <p class="mb-1 small"><strong>Monto Depositado:</strong> <span class="text-success fw-bold fs-6">+${{ a.montoahorro }}</span></p>
+                                                        <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
+                                                    {% else %}
+                                                        <p class="mb-1 small"><strong>Monto a Transferir:</strong> <span class="text-danger fw-bold fs-5">${{ a.montoahorro|stringformat:".2f" }}</span></p>
+                                                        <div class="alert alert-info py-2 small mt-3">
+                                                            <i class="fas fa-info-circle"></i> Revisa las cuentas bancarias registradas por el socio en la pestaña "Comunidad" y realízale la transferencia de sus fondos.
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <!-- Comprobante Dinámico -->
+                                                <div class="col-md-6 text-center border-start border-2">
+                                                    {% if a.montoahorro > 0 %}
+                                                        <!-- MODO DEPÓSITO: Mostrar imagen subida por el socio -->
+                                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante del Socio</h6>
+                                                        {% if a.comprobanteahorro %}
+                                                            <a href="{{ a.comprobanteahorro.url }}" target="_blank">
+                                                                <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" style="max-height: 250px; object-fit: cover;">
+                                                            </a>
+                                                            <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
+                                                        {% else %}
+                                                            <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                                                <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
+                                                                <span class="small fw-bold">Sin imagen adjunta</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <!-- MODO RETIRO: Pedirle al Admin que suba la imagen de la transferencia -->
+                                                        <h6 class="fw-bold text-warning mb-3"><i class="fas fa-upload"></i> Evidencia de Transferencia</h6>
+                                                        <p class="small text-muted mb-3">Una vez que le transfieras el dinero al socio, sube aquí la foto del comprobante para que él pueda verla en su libreta.</p>
+                                                        
+                                                        <input type="file" name="comprobante_admin" class="form-control shadow-sm border-warning" accept="image/*" required>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="modal-footer border-0 bg-white d-flex justify-content-between">
-                                        <form method="POST" action="{% url 'dashboard' %}" class="m-0">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="rechazar_ahorro">
-                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
-                                            <button type="submit" class="btn btn-outline-danger fw-bold">
+                                        <div class="modal-footer border-0 bg-white d-flex justify-content-between">
+                                            <!-- El botón rechazar llama al formulario oculto arriba usando el atributo form="" -->
+                                            <button type="submit" form="form-rechazar-ahorro-{{ a.idahorro }}" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas rechazar esta transacción?');">
                                                 <i class="fas fa-times me-1"></i> Rechazar
                                             </button>
-                                        </form>
 
-                                        <form method="POST" action="{% url 'dashboard' %}" class="m-0">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="validar_ahorro">
-                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
-                                            <button type="submit" class="btn btn-info text-white fw-bold px-4 shadow-sm">
-                                                <i class="fas fa-check me-1"></i> Validar y Acreditar
+                                            <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
+                                                <i class="fas fa-check me-1"></i> Validar Transacción
                                             </button>
-                                        </form>
-                                    </div>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </div>
