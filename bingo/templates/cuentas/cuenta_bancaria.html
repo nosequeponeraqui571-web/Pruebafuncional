@@ -5,7 +5,6 @@
 
 {% block content %}
 <div class="container mt-5 mb-5">
-    <!-- Incluimos alertas para mensajes de éxito/error -->
     {% include 'componentes/alertas.html' %}
 
     <!-- Encabezado con Botón de Retorno -->
@@ -13,7 +12,7 @@
         <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
             <div>
                 <h2 class="mb-2 text-success fw-bold"><i class="fas fa-piggy-bank"></i> Mis Cuentas de Destino</h2>
-                <p class="text-muted">Registra las cuentas bancarias donde deseas recibir tus depósitos o liquidaciones de la cooperativa.</p>
+                <p class="text-muted">Registra las cuentas bancarias donde deseas recibir tus depósitos o liquidaciones.</p>
             </div>
             <div class="text-end">
                 <a href="{% url 'perfil' %}" class="btn btn-outline-secondary shadow-sm fw-bold">
@@ -33,44 +32,61 @@
                     <h5 class="card-title mb-0 fw-bold"><i class="fas fa-plus-circle text-success me-2"></i> Agregar Cuenta</h5>
                 </div>
                 <div class="card-body bg-light">
-                    <form method="POST" action="{% url 'cuenta_bancaria' %}">
-                        {% csrf_token %}
-                        <!-- Acción oculta capturada por views.py -->
-                        <input type="hidden" name="action" value="agregar_cuenta">
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">Banco o Entidad</label>
-                            <input type="text" class="form-control shadow-sm" name="banco" placeholder="Ej: Banco Pichincha, Guayaquil..." required>
+                    
+                    {% if not es_socio %}
+                        <!-- MENSAJE PARA NO SOCIOS -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-lock fa-3x text-muted mb-3 opacity-50"></i>
+                            <h6 class="fw-bold text-muted">Acceso Restringido</h6>
+                            <p class="small text-muted mb-0">Solo los <strong>socios activos</strong> de la cooperativa pueden registrar cuentas bancarias para recibir depósitos.</p>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">Tipo de Cuenta</label>
-                            <select class="form-select shadow-sm" name="tipo_cuenta" required>
-                                <option value="" disabled selected>-- Selecciona un tipo --</option>
-                                <option value="Ahorros">Ahorros</option>
-                                <option value="Corriente">Corriente</option>
-                                <option value="Billetera Movil">Billetera Móvil (DeUna, MiVecino)</option>
-                            </select>
+                    {% elif cuentas|length >= 2 %}
+                        <!-- MENSAJE DE LÍMITE DE CUENTAS (Activado por tu def clean en models) -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+                            <h6 class="fw-bold text-dark">Límite Alcanzado</h6>
+                            <p class="small text-muted mb-0">Por seguridad, solo puedes registrar un <strong>máximo de 2 cuentas bancarias</strong>. Si deseas agregar una nueva, debes eliminar una primero.</p>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">Número de Cuenta / Teléfono</label>
-                            <input type="text" class="form-control shadow-sm font-monospace" name="numero_cuenta" placeholder="Ej: 2200001111" required>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold small text-muted">Titular de la Cuenta</label>
-                            <!-- Se pre-llena con el nombre del socio para facilitar el registro -->
-                            <input type="text" class="form-control shadow-sm" name="titular" value="{{ socio.primernombresocio }} {{ socio.primerapellidosocio }}" required>
-                            <div class="form-text mt-1 text-info small">
-                                <i class="fas fa-info-circle"></i> Preferiblemente, la cuenta debe estar a tu nombre.
+                    {% else %}
+                        <!-- FORMULARIO PARA SOCIOS -->
+                        <form method="POST" action="{% url 'cuenta_bancaria' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="agregar_cuenta">
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted">Nombre del Banco</label>
+                                <input type="text" class="form-control shadow-sm" name="nombrebanco" placeholder="Ej: Banco Pichincha, Guayaquil..." required>
                             </div>
-                        </div>
 
-                        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm">
-                            <i class="fas fa-save me-2"></i> Guardar Cuenta
-                        </button>
-                    </form>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted">Tipo de Cuenta</label>
+                                <select class="form-select shadow-sm" name="tipocuenta" required>
+                                    <option value="" disabled selected>-- Selecciona un tipo --</option>
+                                    <option value="Ahorro">Ahorro</option>
+                                    <option value="Corriente">Corriente</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted">Número de Cuenta</label>
+                                <input type="text" class="form-control shadow-sm font-monospace" name="numerocuenta" placeholder="Ej: 2200001111" required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold small text-muted">Titular de la Cuenta</label>
+                                <!-- El modelo ya no pide titular manual, usamos el del socio -->
+                                <input type="text" class="form-control shadow-sm bg-secondary bg-opacity-10" value="{{ socio.primernombresocio }} {{ socio.primerapellidosocio }}" disabled readonly>
+                                <div class="form-text mt-1 text-info small">
+                                    <i class="fas fa-info-circle"></i> Por seguridad de la cooperativa, la cuenta bancaria quedará vinculada estrictamente a tu nombre.
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm">
+                                <i class="fas fa-save me-2"></i> Guardar Cuenta
+                            </button>
+                        </form>
+                    {% endif %}
+                    
                 </div>
             </div>
         </div>
@@ -91,21 +107,32 @@
                                     <th class="ps-4">Banco / Entidad</th>
                                     <th>Tipo</th>
                                     <th>Número</th>
-                                    <th>Titular</th>
+                                    <th>Estado</th>
                                     <th class="text-center pe-4">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for cuenta in cuentas %}
                                 <tr>
-                                    <td class="ps-4 fw-bold text-dark">{{ cuenta.bancocuentabancaria }}</td>
+                                    <td class="ps-4 fw-bold text-dark">
+                                        {{ cuenta.nombrebanco }}
+                                        {% if cuenta.esprincipal %}
+                                            <br><span class="badge bg-primary mt-1" style="font-size: 0.65rem;">Principal</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge bg-secondary bg-opacity-10 text-secondary border">
-                                            {{ cuenta.tipocuentabancaria }}
+                                            {{ cuenta.tipocuenta }}
                                         </span>
                                     </td>
-                                    <td class="font-monospace fw-bold text-primary">{{ cuenta.numerocuentabancaria }}</td>
-                                    <td class="small text-muted">{{ cuenta.titularcuentabancaria }}</td>
+                                    <td class="font-monospace fw-bold text-primary">{{ cuenta.numerocuenta }}</td>
+                                    <td>
+                                        {% if cuenta.estadocuenta == 'Activo' %}
+                                            <span class="badge bg-success-subtle text-success"><i class="fas fa-check-circle"></i> Activa</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger"><i class="fas fa-times-circle"></i> Inactiva</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center pe-4">
                                         <!-- Formulario para eliminar cuenta -->
                                         <form method="POST" action="{% url 'cuenta_bancaria' %}" class="m-0">
@@ -124,8 +151,12 @@
                                 <tr>
                                     <td colspan="5" class="text-center py-5 text-muted">
                                         <i class="fas fa-university fa-3x mb-3 text-light"></i><br>
-                                        Aún no has registrado ninguna cuenta bancaria.<br>
-                                        <small>Usa el formulario de la izquierda para agregar una.</small>
+                                        {% if es_socio %}
+                                            Aún no has registrado ninguna cuenta bancaria.<br>
+                                            <small>Usa el formulario de la izquierda para agregar una.</small>
+                                        {% else %}
+                                            No tienes cuentas bancarias porque no eres un socio activo.
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}

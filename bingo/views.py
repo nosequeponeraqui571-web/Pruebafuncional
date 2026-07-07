@@ -27,7 +27,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from django.shortcuts import render
 from decimal import Decimal
 from django.shortcuts import render, redirect
-
+from django.core.exceptions import ValidationError
 
 
 
@@ -469,46 +469,65 @@ def bingo_publico(request):
 @login_required
 def cuenta_bancaria(request):
     """
-    Vista para que el Socio registre y elimine sus cuentas bancarias para recibir depósitos.
+    Vista para que el Socio registre y elimine sus cuentas bancarias.
+    Solo accesible para Socios Activos, con límite de 2 cuentas.
     """
     socio = Socio.objects.filter(cisocio=request.user.username).first()
-    if not socio:
-        messages.warning(request, "Debes ser Socio para gestionar cuentas bancarias.")
-        return redirect('inicio')
+    # Verificamos si realmente es un socio activo
+    es_socio = True if socio and socio.estadosocio in ['Activo', 'Active'] else False
 
-    # Obtener las cuentas vinculadas al socio
-    cuentas = CuentaBancaria.objects.filter(idsocio=socio)
+    # Si es socio, cargamos sus cuentas; si no, lista vacía
+    cuentas = CuentaBancaria.objects.filter(idsocio=socio) if socio else []
 
     if request.method == 'POST':
         action = request.POST.get('action')
         
         if action == 'agregar_cuenta':
-            CuentaBancaria.objects.create(
-                idsocio=socio,
-                bancocuentabancaria=request.POST.get('banco'),
-                tipocuentabancaria=request.POST.get('tipo_cuenta'),
-                numerocuentabancaria=request.POST.get('numero_cuenta'),
-                titularcuentabancaria=request.POST.get('titular'),
-                estadocuentabancaria='Activa'
-            )
-            messages.success(request, "Cuenta bancaria agregada exitosamente a tu perfil.")
+            if not es_socio:
+                messages.error(request, "Solo los socios activos pueden registrar cuentas bancarias.")
+                return redirect('cuenta_bancaria')
+
+            try:
+                # Usamos los nombres EXACTOS de tu nuevo modelo
+                nueva_cuenta = CuentaBancaria(
+                    idsocio=socio,
+                    nombrebanco=request.POST.get('nombrebanco'),
+                    tipocuenta=request.POST.get('tipocuenta'),
+                    numerocuenta=request.POST.get('numerocuenta'),
+                    esprincipal=True if cuentas.count() == 0 else False, # La primera será la principal
+                    estadocuenta='Activo'
+                )
+                
+                # full_clean() fuerza la ejecución de tu def clean(self) en el modelo
+                nueva_cuenta.full_clean() 
+                nueva_cuenta.save()
+                messages.success(request, "Cuenta bancaria agregada exitosamente a tu perfil.")
+                
+            except ValidationError as e:
+                # Si se activa el bloqueo de las 2 cuentas, mostramos el error elegante
+                if hasattr(e, 'message_dict'):
+                    messages.error(request, "Error de validación en los datos.")
+                else:
+                    messages.error(request, e.messages[0])
+            except Exception as e:
+                messages.error(request, f"Error al registrar cuenta: {str(e)}")
+            
+            return redirect('cuenta_bancaria')
             
         elif action == 'eliminar_cuenta':
             id_cuenta = request.POST.get('id_cuenta')
-            # Nos aseguramos de que solo pueda eliminar SU propia cuenta
             cuenta = CuentaBancaria.objects.filter(idcuentabancaria=id_cuenta, idsocio=socio).first()
             if cuenta:
                 cuenta.delete()
                 messages.success(request, "La cuenta bancaria ha sido eliminada.")
-        
-        return redirect('cuenta_bancaria')
+            return redirect('cuenta_bancaria')
 
     contexto = {
         'socio': socio,
+        'es_socio': es_socio,
         'cuentas': cuentas
     }
     return render(request, 'cuentas/cuenta_bancaria.html', contexto)
-
 @login_required
 def ahorro(request):
     """

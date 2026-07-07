@@ -382,7 +382,7 @@
                                         <tbody>
                                             {% for a in ahorros %}
                                             <tr>
-                                                <td class="fw-bold text-dark">{{ a.idsocio.primerapellidosocio }}, {{ a.idsocio.primernombresocio }}</td>
+                                                <td class="fw-bold text-dark">{{ a.idsocio.primernombresocio }}  {{ a.idsocio.primerapellidosocio }}</td>
                                                 <td>
                                                     {% if a.montoahorro > 0 %}
                                                         <span class="text-success fw-bold"><i class="fas fa-arrow-down"></i> +${{ a.montoahorro }}</span>
@@ -412,94 +412,110 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- ========================================== -->
-                    <!-- MODALS DE REVISIÓN DE AHORROS              -->
+                    <!-- MODALS DE REVISIÓN DE AHORRO / RETIRO      -->
+                    <!-- Ubicados fuera de la tarjeta para estabilidad -->
                     <!-- ========================================== -->
                     {% for a in ahorros %}
                         {% if a.estadoahorro == 'Pendiente' %}
-                        <!-- Formulario invisible para el botón de rechazar -->
-                        <form method="POST" action="{% url 'dashboard' %}" id="form-rechazar-ahorro-{{ a.idahorro }}" class="d-none">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="rechazar_ahorro">
-                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
-                        </form>
-
+                        <!-- CORRECCIÓN: Se cambió el ID a modalRevisarAhorro para que coincida con el botón de la tabla -->
                         <div class="modal fade" id="modalRevisarAhorro{{ a.idahorro }}" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered modal-lg">
                                 <div class="modal-content border-0 shadow">
-                                    <!-- FORM PRINCIPAL QUE ENVUELVE EL MODAL BODY PARA PODER SUBIR ARCHIVOS -->
-                                    <form method="POST" action="{% url 'dashboard' %}" enctype="multipart/form-data" class="m-0">
+                                    <div class="modal-header bg-dark text-white border-0">
+                                        <h5 class="modal-title fw-bold">
+                                            {% if a.montoahorro < 0 %}
+                                                <i class="fas fa-hand-holding-usd text-warning me-2"></i> Validar Retiro de Fondos
+                                            {% else %}
+                                                <i class="fas fa-piggy-bank text-info me-2"></i> Validar Depósito de Ahorro
+                                            {% endif %}
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <!-- El enctype="multipart/form-data" es CRUCIAL para poder subir el comprobante -->
+                                    <form method="POST" action="{% url 'dashboard' %}" enctype="multipart/form-data">
                                         {% csrf_token %}
-                                        <input type="hidden" name="action" value="validar_ahorro">
-                                        <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
-                                        
-                                        <div class="modal-header bg-dark text-white border-0">
-                                            <h5 class="modal-title fw-bold">
-                                                {% if a.montoahorro > 0 %}
-                                                    <i class="fas fa-piggy-bank me-2 text-info"></i> Validar Depósito de Ahorro
-                                                {% else %}
-                                                    <i class="fas fa-hand-holding-usd me-2 text-warning"></i> Procesar Retiro de Socio
-                                                {% endif %}
-                                            </h5>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        
                                         <div class="modal-body p-4 bg-light">
                                             <div class="row g-4">
-                                                <!-- Info del Socio -->
+                                                <!-- Información del Socio y Movimiento -->
                                                 <div class="col-md-6">
-                                                    <h6 class="fw-bold text-primary mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                                                    <h6 class="fw-bold text-info mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
                                                     <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
                                                     <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
-                                                    <p class="mb-1 small"><strong>Teléfono:</strong> {{ a.idsocio.telefonopersonalsocio }}</p>
                                                     
-                                                    <h6 class="fw-bold text-primary mt-4 mb-3"><i class="fas fa-exchange-alt"></i> Detalle de Transacción</h6>
-                                                    {% if a.montoahorro > 0 %}
-                                                        <p class="mb-1 small"><strong>Monto Depositado:</strong> <span class="text-success fw-bold fs-6">+${{ a.montoahorro }}</span></p>
-                                                        <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
-                                                    {% else %}
-                                                        <p class="mb-1 small"><strong>Monto a Transferir:</strong> <span class="text-danger fw-bold fs-5">${{ a.montoahorro|stringformat:".2f" }}</span></p>
-                                                        <div class="alert alert-info py-2 small mt-3">
-                                                            <i class="fas fa-info-circle"></i> Revisa las cuentas bancarias registradas por el socio en la pestaña "Comunidad" y realízale la transferencia de sus fondos.
+                                                    <h6 class="fw-bold text-info mt-4 mb-3"><i class="fas fa-money-bill-wave"></i> Detalle del {% if a.montoahorro < 0 %}Retiro{% else %}Depósito{% endif %}</h6>
+                                                    
+                                                    {% if a.montoahorro < 0 %}
+                                                        <p class="mb-1 small"><strong>Monto Solicitado:</strong> <span class="text-danger fw-bold fs-6">${{ a.montoahorro|stringformat:"+f"|slice:"1:" }}</span> (Retiro)</p>
+                                                        
+                                                        <!-- AQUI MOSTRAMOS LAS CUENTAS DEL SOCIO PARA EL RETIRO -->
+                                                        <div class="mt-3 p-3 bg-white rounded border border-warning">
+                                                            <h6 class="small fw-bold text-warning-emphasis mb-2"><i class="fas fa-university me-1"></i> Cuentas Destino Registradas:</h6>
+                                                            {% if a.idsocio.cuentabancaria_set.all %}
+                                                                <ul class="list-unstyled mb-0 small">
+                                                                    {% for cuenta in a.idsocio.cuentabancaria_set.all %}
+                                                                        <li class="mb-2 border-bottom pb-1">
+                                                                            <strong>{{ cuenta.nombrebanco }}</strong> ({{ cuenta.tipocuenta }})<br>
+                                                                            <span class="font-monospace text-primary user-select-all">{{ cuenta.numerocuenta }}</span>
+                                                                            {% if cuenta.esprincipal %} <span class="badge bg-success ms-1" style="font-size:0.6rem;">Principal</span> {% endif %}
+                                                                        </li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            {% else %}
+                                                                <p class="text-muted small mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> El socio no tiene cuentas registradas. Contáctalo para coordinar el pago.</p>
+                                                            {% endif %}
                                                         </div>
+
+                                                    {% else %}
+                                                        <p class="mb-1 small"><strong>Monto a Ahorrar:</strong> <span class="text-info fw-bold fs-6">${{ a.montoahorro }}</span></p>
+                                                        <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
                                                     {% endif %}
+                                                    
+                                                    <p class="mb-0 small mt-2"><strong>Fecha:</strong> {{ a.fechaahorro|date:"d M Y, H:i" }}</p>
                                                 </div>
-                                                
-                                                <!-- Comprobante Dinámico -->
+
+                                                <!-- Área de Comprobantes (Dinámica según si es Retiro o Depósito) -->
                                                 <div class="col-md-6 text-center border-start border-2">
-                                                    {% if a.montoahorro > 0 %}
-                                                        <!-- MODO DEPÓSITO: Mostrar imagen subida por el socio -->
+                                                    
+                                                    {% if a.montoahorro < 0 %}
+                                                        <!-- SI ES RETIRO: El Administrador debe SUBIR la foto -->
+                                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-upload"></i> Subir Comprobante de Transferencia</h6>
+                                                        <div class="alert alert-warning small text-start">
+                                                            Por favor, realiza la transferencia a la cuenta del socio y sube aquí la captura de pantalla como respaldo.
+                                                        </div>
+                                                        <input type="file" class="form-control form-control-sm mb-3" name="comprobanteahorro" accept="image/*" required>
+                                                        
+                                                    {% else %}
+                                                        <!-- SI ES DEPÓSITO: El Administrador REVISA la foto del socio -->
                                                         <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante del Socio</h6>
                                                         {% if a.comprobanteahorro %}
-                                                            <a href="{{ a.comprobanteahorro.url }}" target="_blank">
-                                                                <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" style="max-height: 250px; object-fit: cover;">
+                                                            <a href="{{ a.comprobanteahorro.url }}" target="_blank" title="Abrir en pestaña completa">
+                                                                <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" alt="Comprobante" style="max-height: 200px; object-fit: cover;">
                                                             </a>
                                                             <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
                                                         {% else %}
-                                                            <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
-                                                                <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
-                                                                <span class="small fw-bold">Sin imagen adjunta</span>
+                                                            <div class="p-4 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                                                <i class="fas fa-image-slash fa-2x mb-2 opacity-50"></i>
+                                                                <span class="small fw-bold">Sin comprobante adjunto</span>
                                                             </div>
                                                         {% endif %}
-                                                    {% else %}
-                                                        <!-- MODO RETIRO: Pedirle al Admin que suba la imagen de la transferencia -->
-                                                        <h6 class="fw-bold text-warning mb-3"><i class="fas fa-upload"></i> Evidencia de Transferencia</h6>
-                                                        <p class="small text-muted mb-3">Una vez que le transfieras el dinero al socio, sube aquí la foto del comprobante para que él pueda verla en su libreta.</p>
-                                                        
-                                                        <input type="file" name="comprobante_admin" class="form-control shadow-sm border-warning" accept="image/*" required>
                                                     {% endif %}
+
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <!-- Botones de Acción -->
                                         <div class="modal-footer border-0 bg-white d-flex justify-content-between">
-                                            <!-- El botón rechazar llama al formulario oculto arriba usando el atributo form="" -->
-                                            <button type="submit" form="form-rechazar-ahorro-{{ a.idahorro }}" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas rechazar esta transacción?');">
+                                            <!-- Rechazar usa JS para enviar el form con la acción de rechazo -->
+                                            <button type="submit" name="action" value="rechazar_ahorro" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas RECHAZAR este movimiento?');">
                                                 <i class="fas fa-times me-1"></i> Rechazar
                                             </button>
 
-                                            <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
-                                                <i class="fas fa-check me-1"></i> Validar Transacción
+                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                                            <!-- Acreditar usa la acción por defecto del form -->
+                                            <button type="submit" name="action" value="validar_ahorro" class="btn btn-info fw-bold text-white px-4 shadow-sm" onclick="return confirm('¿Confirmas esta operación?');">
+                                                <i class="fas fa-check me-1"></i> {% if a.montoahorro < 0 %}Confirmar Transferencia{% else %}Validar y Acreditar{% endif %}
                                             </button>
                                         </div>
                                     </form>

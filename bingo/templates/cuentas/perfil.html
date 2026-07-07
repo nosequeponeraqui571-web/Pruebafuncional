@@ -285,20 +285,28 @@
                                 </div>
                             </div>
                              <!-- BOTONES DE REDIRECCIÓN AÑADIDOS AQUÍ -->
-                                            <div class="row g-3 mt-4">
-                                                <div class="col-md-6">
-                                                    <a href="{% url 'creditos' %}" class="btn btn-outline-success w-100 fw-bold py-2 shadow-sm">
-                                                        <i class="fas fa-hand-holding-usd me-2"></i> Ir a Mis Créditos
-                                                    </a>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <a href="{% url 'ahorro' %}" class="btn btn-outline-info w-100 fw-bold py-2 shadow-sm">
-                                                        <i class="fas fa-piggy-bank me-2"></i> Ir a Mis Ahorros
-                                                    </a>
-                                                </div>
-                                            </div>
-                                            <!-- FIN DE BOTONES DE REDIRECCIÓN -->
-                            {% endif %}
+                                
+                                <div class="row g-3 mt-4 justify-content-center">
+                                    <div class="col-md-4">
+                                        <a href="{% url 'creditos' %}" class="btn btn-outline-success w-100 fw-bold py-2 shadow-sm">
+                                            <i class="fas fa-hand-holding-usd me-2"></i> Ir a Mis Créditos
+                                        </a>
+                                    </div>
+                                    
+                                    <!-- NUEVO BOTÓN CENTRADO -->
+                                    <div class="col-md-4">
+                                        <a href="{% url 'cuenta_bancaria' %}" class="btn btn-outline-primary w-100 fw-bold py-2 shadow-sm">
+                                            <i class="fas fa-university me-2"></i> Mis Cuentas Bancarias
+                                        </a>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <a href="{% url 'ahorro' %}" class="btn btn-outline-info w-100 fw-bold py-2 shadow-sm">
+                                            <i class="fas fa-piggy-bank me-2"></i> Ir a Mis Ahorros
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endif %}
                             
                         </div>
                     </div>
