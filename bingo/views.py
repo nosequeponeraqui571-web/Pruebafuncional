@@ -28,7 +28,7 @@ from django.shortcuts import render
 from decimal import Decimal
 from django.shortcuts import render, redirect
 from django.core.exceptions import ValidationError
-
+import csv
 
 
 def inicio(request):
@@ -85,7 +85,74 @@ def inicio(request):
         'mostrar_promo_socio': mostrar_promo_socio,
     }
     return render(request, 'comunes/inicio.html', contexto)
-
+@login_required
+def reporte_liquidacion_excel(request):
+    """
+    Genera el Excel de liquidación de fin de año aplicando la "Regla de Vanessa":
+    El interés ganado se reparte proporcionalmente según cuánto ahorró cada socio.
+    """
+    # 1. Preparar el archivo CSV (Se abre perfectamente en Excel)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="Liquidacion_Fin_De_Anio.csv"'
+    response.write(u'\ufeff'.encode('utf8')) # Para que Excel lea los tildes y símbolos de dólar
+    
+    writer = csv.writer(response, delimiter=';') # Usamos punto y coma para separar las celdas en Excel
+    
+    # 2. Títulos de las columnas (Igual al Excel de los videos)
+    writer.writerow(['Cédula', 'Socio', 'Total Ahorrado ($)', 'Porcentaje Propiedad (%)', 'Intereses Ganados ($)', 'TOTAL A RECIBIR ($)'])
+    
+    # ==============================================================
+    # PASO 1: Calcular los POZOS TOTALES de la Cooperativa
+    # ==============================================================
+    # Sumamos todos los ahorros acreditados de todos los socios
+    total_ahorros_coop = Ahorro.objects.filter(estadoahorro='Acreditado').aggregate(Sum('montoahorro'))['montoahorro__sum'] or Decimal('0.00')
+    
+    # Sumamos las ganancias de todos los préstamos (Total a pagar - Monto solicitado)
+    prestamos_validos = Prestamo.objects.exclude(estadoprestamo__in=['Solicitado', 'Rechazado', 'Cancelado'])
+    total_intereses_coop = sum((p.montototalpagar - p.montoprestamosolicitado) for p in prestamos_validos)
+        
+    # ==============================================================
+    # PASO 2 y 3: Calcular el pedazo del pastel para CADA SOCIO
+    # ==============================================================
+    socios = Socio.objects.filter(estadosocio='Activo')
+    
+    for socio in socios:
+        # Cuánto ahorró este socio en particular
+        ahorro_socio = Ahorro.objects.filter(idsocio=socio, estadoahorro='Acreditado').aggregate(Sum('montoahorro'))['montoahorro__sum'] or Decimal('0.00')
+        
+        # Regla de 3: ¿De qué porcentaje del pozo es dueño este socio?
+        porcentaje = Decimal('0.00')
+        if total_ahorros_coop > 0:
+            porcentaje = (ahorro_socio / total_ahorros_coop) * Decimal('100.00')
+            
+        # Ganancia justa: Multiplicamos los intereses totales por su porcentaje
+        ganancia = (porcentaje / Decimal('100.00')) * total_intereses_coop
+        
+        # Total que se lleva a casa a fin de año
+        total_recibir = ahorro_socio + ganancia
+        
+        # Escribir la fila del socio en el Excel
+        writer.writerow([
+            socio.cisocio,
+            f"{socio.primerapellidosocio} {socio.primernombresocio}",
+            round(ahorro_socio, 2),
+            round(porcentaje, 4),
+            round(ganancia, 2),
+            round(total_recibir, 2)
+        ])
+        
+    # 4. Fila final de COMPROBACIÓN (Para que veas que no se pierde ni 1 centavo)
+    writer.writerow([]) # Fila vacía para separar
+    writer.writerow([
+        '', 
+        'SUMA TOTAL DE LA COOPERATIVA', 
+        round(total_ahorros_coop, 2), 
+        '100%', 
+        round(total_intereses_coop, 2), 
+        round(total_ahorros_coop + total_intereses_coop, 2)
+    ])
+    
+    return response
 @login_required
 def dashboard(request):
     if not request.user.is_staff:
@@ -387,7 +454,24 @@ def dashboard(request):
                     ahorro_obj.save()
                     messages.success(request, f"¡Transacción validada y completada!")
                 return redirect('dashboard')
+            elif action == 'validar_aporte':
+                id_aporte = request.POST.get('id_aporte')
+                if id_aporte:
+                    aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte)
+                    aporte_obj.estadoaporte = 'Al Dia'
+                    aporte_obj.save()
+                    messages.success(request, f"Semana N° {aporte_obj.numerosemana} marcada como 'Al Día' para {aporte_obj.idsocio.primerapellidosocio}.")
+                return redirect('dashboard')
 
+            elif action == 'rechazar_aporte':
+                id_aporte = request.POST.get('id_aporte')
+                if id_aporte:
+                    aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte)
+                    aporte_obj.estadoaporte = 'Atrasado'
+                    aporte_obj.comprobanteaporte = None # Borramos la foto corrupta
+                    aporte_obj.save()
+                    messages.warning(request, "Cuota Semanal rechazada. El socio deberá subir el comprobante nuevamente.")
+                return redirect('dashboard')
             elif action == 'rechazar_ahorro':
                 id_ahorro = request.POST.get('id_ahorro')
                 if id_ahorro:
@@ -399,6 +483,77 @@ def dashboard(request):
             elif action == 'eliminar_moneda':
                 UnidadMonetaria.objects.get(idunidadmonetaria=request.POST.get('id_moneda')).delete()
                 messages.success(request, "Divisa eliminada del sistema.")
+            # --- LÓGICA: APERTURAR SEMANA DE PAGOS ---
+            elif action == 'generar_semana_masiva':
+                anio = int(request.POST.get('anio'))
+                mes = int(request.POST.get('mes'))
+                dia_corte = int(request.POST.get('dia_corte')) # 0=Lunes, 5=Sábado, 6=Domingo
+                
+                socios_activos = Socio.objects.filter(estadosocio='Activo')
+                
+                import calendar
+                from datetime import date
+                
+                # 1. Encontrar todas las fechas que caen en el día elegido (ej: todos los sábados del mes)
+                c = calendar.Calendar(firstweekday=0)
+                fechas_corte = []
+                for week in c.monthdatescalendar(anio, mes):
+                    for day in week:
+                        if day.month == mes and day.weekday() == dia_corte:
+                            fechas_corte.append(day)
+                
+                # 2. Generar las semanas para todos los socios activos
+                semanas_creadas = 0
+                for fecha in fechas_corte:
+                    num_semana = fecha.isocalendar()[1] # Saca el número de semana estándar del año
+                    
+                    for socio in socios_activos:
+                        # Evitar duplicados por si el admin le da clic dos veces por error
+                        if not AporteSemanal.objects.filter(idsocio=socio, fechaplanificadadada__date=fecha).exists():
+                            AporteSemanal.objects.create(
+                                idsocio=socio,
+                                numerosemana=num_semana,
+                                fechaplanificadadada=fecha,
+                                estadoaporte='Pendiente'
+                            )
+                            semanas_creadas += 1
+                            
+                mes_nombre = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+                messages.success(request, f"¡Éxito! Se generaron {semanas_creadas} registros de cobro para el mes de {mes_nombre[mes]} del {anio}.")
+                return redirect('dashboard')
+            # -----------------------------------------------
+
+            # =======================================================
+            # LÓGICA: GESTIÓN DE REGALOS (Catálogo)
+            # =======================================================
+            elif action == 'crear_regalo':
+                nombreregalo = request.POST.get('nombreregalo')
+                descripcionregalo = request.POST.get('descripcionregalo', '')
+                valorregalo = request.POST.get('valorregalo')
+                urlimagen = request.FILES.get('urlimagen')
+                
+                if nombreregalo and valorregalo and urlimagen:
+                    Regalo.objects.create(
+                        nombreregalo=nombreregalo,
+                        descripcionregalo=descripcionregalo,
+                        valorregalo=valorregalo,
+                        estadoregalo='Acumulado', # Estado por defecto al ingresar al catálogo
+                        urlimagen=urlimagen
+                    )
+                    messages.success(request, "¡Nuevo premio físico añadido al catálogo exitosamente!")
+                else:
+                    messages.error(request, "Faltan datos obligatorios o la imagen para registrar el regalo.")
+                return redirect('dashboard')
+                
+            elif action == 'eliminar_regalo':
+                id_regalo = request.POST.get('id_regalo')
+                if id_regalo:
+                    regalo_obj = get_object_or_404(Regalo, idregalo=id_regalo)
+                    regalo_obj.delete()
+                    messages.success(request, "El regalo fue eliminado del catálogo correctamente.")
+                return redirect('dashboard')
+            # =======================================================
+            
         except ProtectedError:
             messages.error(request, "⚠️ ERROR: No puedes eliminar este registro porque hay usuarios o datos vinculados a él.")
         except Exception as e:
@@ -608,7 +763,19 @@ def ahorro(request):
     }
     return render(request, 'cuentas/ahorro.html', contexto)
 
-def regalo(request): return render(request, 'cuentas/regalo.html')
+@login_required
+def regalo(request):
+    """
+    Vitrina de premios para los socios.
+    Muestra los regalos físicos que están disponibles para próximos sorteos.
+    """
+    # Filtramos para mostrar solo los regalos que aún no han sido ganados
+    regalos_disponibles = Regalo.objects.filter(estadoregalo='Acumulado').order_by('-fechaultimaactualizacion')
+    
+    contexto = {
+        'regalos': regalos_disponibles
+    }
+    return render(request, 'cuentas/regalo.html', contexto)
 @login_required
 def control_aportes(request):
     
@@ -720,10 +887,9 @@ def creditos(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        if action == 'solicitar_prestamo' and socio:
+        if action == 'solicitar_prestamo':
             monto_solicitado = request.POST.get('montoprestamosolicitado')
             numerocuotas = request.POST.get('numerocuotas')
-            tasainteres = request.POST.get('tasainteres')
             fechavencimiento = request.POST.get('fechavencimiento')
             idgarante1 = request.POST.get('idgarante1')
             idgarante2 = request.POST.get('idgarante2')
@@ -731,9 +897,15 @@ def creditos(request):
             try:
                 monto = float(monto_solicitado)
                 cuotas = int(numerocuotas)
-                tasa = Decimal(tasainteres)
                 
-                if monto > 0 and cuotas > 0 and tasa >= 0:
+                # =========================================================
+                # LÓGICA FINANCIERA: TASA FIJA DEL 10% (Regla de Vanessa)
+                # =========================================================
+                # Ignoramos cualquier input del usuario y forzamos el 10%
+                tasa = Decimal('10.00') 
+                
+                if monto > 0 and cuotas > 0:
+                    # Cálculo de intereses (El 10% exacto del monto solicitado)
                     interes_calculado = (Decimal(str(monto)) * tasa) / Decimal('100')
                     monto_total = Decimal(str(monto)) + interes_calculado
                     
@@ -753,7 +925,7 @@ def creditos(request):
                         fechavencimiento=fechavencimiento, 
                         estadoprestamo='Solicitado'
                     )
-                    messages.success(request, f"¡Tu solicitud de crédito por ${monto_solicitado} ha sido enviada con éxito!")
+                    messages.success(request, f"¡Tu solicitud por ${monto_solicitado} ha sido enviada! Se aplicó la tasa oficial del 10%. Total a pagar: ${monto_total:.2f}.")
                 else:
                     messages.error(request, "El monto y las cuotas deben ser valores mayores a 0.")
             except Exception as e:
@@ -2255,24 +2427,103 @@ def reporte_cartera_prestamos(request):
 
 @login_required
 def reporte_caja_semanal_pdf(request):
-    if not request.user.is_staff: return redirect('inicio')
+    """
+    Genera un recibo/reporte PDF formal del estado de la caja de la Cooperativa.
+    Desglosa el total recaudado, el pozo de bingo, el ahorro y la lista de morosos.
+    """
+    import io
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from decimal import Decimal
+    from django.db.models import Sum
     
-    aportes = AporteSemanal.objects.all().select_related('idsocio').order_by('-fechaplanificadadada', 'idsocio__primerapellidosocio')
-    total_recaudado = aportes.filter(estadoaporte='Al Dia').aggregate(total=Sum('montoaportesemanal'))['total'] or 0
-    total_pendiente = aportes.filter(estadoaporte='Pendiente').aggregate(total=Sum('montoaportesemanal'))['total'] or 0
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+    except ImportError:
+        messages.error(request, "⚠️ Falta la librería de PDFs. Instálala ejecutando en tu terminal: pip install reportlab")
+        return redirect('dashboard')
 
-    template = get_template('administrador/reporte_caja_pdf.html')
-    context = {
-        'aportes': aportes,
-        'total_recaudado': total_recaudado,
-        'total_pendiente': total_pendiente,
-        'fecha_reporte': timezone.now()
-    }
-    html = template.render(context)
+    # Crear el "lienzo" en memoria
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=30)
+    elements = []
+    styles = getSampleStyleSheet()
     
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="Cierre_Caja_Semanal.pdf"'
-    pisa.CreatePDF(html, dest=response)
+    # 1. TÍTULO DEL DOCUMENTO
+    elements.append(Paragraph("Reporte de Caja Semanal - CoopBingo", styles['Title']))
+    elements.append(Spacer(1, 15))
+
+    # 2. CÁLCULOS MATEMÁTICOS (Año Actual)
+    anio_actual = timezone.now().year
+    aportes_anio = AporteSemanal.objects.filter(fechaplanificadadada__year=anio_actual)
+    
+    pagados = aportes_anio.filter(estadoaporte__in=['Al Dia', 'Pagado'])
+    pendientes = aportes_anio.filter(estadoaporte__in=['Pendiente', 'Atrasado', 'En Revision'])
+    
+    total_recaudado = pagados.aggregate(Sum('montoaporte'))['montoaporte__sum'] or Decimal('0.00')
+    cantidad_pagados = pagados.count()
+    
+    # La Regla de Caja: $2.00 fijos van al Bingo, el resto es ahorro personal
+    total_bingo = Decimal(str(cantidad_pagados * 2.00))
+    total_ahorro = total_recaudado - total_bingo
+    
+    # 3. TABLA 1: RESUMEN FINANCIERO
+    elements.append(Paragraph(f"1. Resumen Financiero General ({anio_actual})", styles['Heading2']))
+    
+    data_resumen = [
+        ['Concepto de Ingreso', 'Monto Calculado ($)'],
+        ['Total Bruto Recaudado', f"${total_recaudado}"],
+        ['Dinero Destinado al Pozo de Bingo ($2 x Cuota)', f"${total_bingo}"],
+        ['Dinero Destinado a Bóveda de Ahorros', f"${total_ahorro}"],
+    ]
+    
+    t_resumen = Table(data_resumen, colWidths=[350, 150])
+    t_resumen.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0d6efd")), # Encabezado Azul
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#f8f9fa")),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+    ]))
+    
+    elements.append(t_resumen)
+    elements.append(Spacer(1, 25))
+    
+    # 4. TABLA 2: LISTA DE COBRANZA (MOROSOS Y REVISIONES)
+    elements.append(Paragraph("2. Socios con Semanas Pendientes o en Revisión", styles['Heading2']))
+    
+    data_pendientes = [['Nombre del Socio', 'Semana', 'Estado Actual']]
+    # Tomamos los primeros 30 para no hacer un PDF de 100 páginas si hay muchos
+    for p in pendientes.order_by('fechaplanificadadada')[:30]:
+        nombre = f"{p.idsocio.primernombresocio} {p.idsocio.primerapellidosocio}"
+        data_pendientes.append([nombre, f"Semana {p.numerosemana}", p.estadoaporte])
+        
+    if len(data_pendientes) > 1:
+        t_pendientes = Table(data_pendientes, colWidths=[250, 100, 150])
+        t_pendientes.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#dc3545")), # Encabezado Rojo
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('GRID', (0,0), (-1,-1), 1, colors.black),
+            ('TEXTCOLOR', (2,1), (2,-1), colors.red), # Las palabras "Pendiente" en rojo
+        ]))
+        elements.append(t_pendientes)
+    else:
+        elements.append(Paragraph("Excelente trabajo. No hay socios morosos registrados actualmente.", styles['Normal']))
+
+    # Construir el PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Enviar al navegador para descargar o visualizar
+    response = HttpResponse(buffer, content_type='application/pdf')
+    # Usamos 'inline' para que se abra en el navegador, o 'attachment' para forzar la descarga
+    response['Content-Disposition'] = f'inline; filename="Cierre_Caja_CoopBingo_{anio_actual}.pdf"'
     return response
 
 def control_aportes(request):
@@ -2330,3 +2581,45 @@ def control_aportes(request):
         'matriz_socios': matriz_socios.values(), # Pasamos los renglones limpios
     }
     return render(request, 'dashboard.html', context)
+@login_required
+def aporte(request):
+    socio_obj = Socio.objects.filter(cisocio=request.user.username).first()
+    if not socio_obj or socio_obj.estadosocio not in ['Activo', 'Active']:
+        messages.error(request, "Solo los socios activos pueden reportar sus cuotas semanales.")
+        return redirect('perfil')
+
+    # Filtrar semanas pendientes o atrasadas
+    aportes_pendientes = AporteSemanal.objects.filter(idsocio=socio_obj, estadoaporte__in=['Pendiente', 'Atrasado']).order_by('numerosemana')
+    historial_aportes = AporteSemanal.objects.filter(idsocio=socio_obj).exclude(estadoaporte__in=['Pendiente', 'Atrasado']).order_by('-numerosemana')
+    metodos_activos = MetodoPago.objects.filter(estadometodopago='Activo')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'registrar_aporte':
+            id_aporte = request.POST.get('id_aporte')
+            id_metodo = request.POST.get('id_metodo_pago')
+            monto = request.POST.get('monto_pagado')
+            comprobante = request.FILES.get('comprobanteaporte')
+
+            if id_aporte and id_metodo and monto and comprobante:
+                # Usamos pk=id_aporte por seguridad, en caso de que tu llave primaria se llame distinto
+                aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte, idsocio=socio_obj)
+                metodo_obj = get_object_or_404(MetodoPago, idmetodopago=id_metodo)
+
+                aporte_obj.idmetodopago = metodo_obj
+                aporte_obj.montoaporte = float(monto)
+                aporte_obj.comprobanteaporte = comprobante
+                aporte_obj.estadoaporte = 'En Revision'
+                aporte_obj.save()
+
+                messages.success(request, f"¡Comprobante enviado! El administrador validará tu pago de la Semana N° {aporte_obj.numerosemana}.")
+            else:
+                messages.error(request, "Por favor completa todos los campos y sube tu comprobante.")
+            return redirect('aporte')
+
+    context = {
+        'aportes_pendientes': aportes_pendientes,
+        'historial_aportes': historial_aportes,
+        'metodos_activos': metodos_activos,
+    }
+    return render(request, 'cuentas/aporte.html', context)

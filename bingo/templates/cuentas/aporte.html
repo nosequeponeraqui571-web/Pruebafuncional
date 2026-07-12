@@ -1,0 +1,185 @@
+{% extends 'comunes/base.html' %}
+{% load static %}
+
+{% block title %}Mi Cuota Semanal - CoopBingo{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    {% include 'componentes/alertas.html' %}
+
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="mb-2 text-warning-emphasis fw-bold"><i class="fas fa-calendar-check"></i> Aportes Semanales</h2>
+                <p class="text-muted">Reporta el pago de tus semanas (Bingo + Ahorro Voluntario).</p>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'perfil' %}" class="btn btn-outline-secondary shadow-sm fw-bold">
+                    <i class="fas fa-arrow-left me-1"></i> Volver al Perfil
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- FORMULARIO DE PAGO -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 border-top border-warning border-4 h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold"><i class="fas fa-upload text-warning me-2"></i> Pagar Semana Pendiente</h5>
+                </div>
+                <div class="card-body bg-light">
+                    {% if aportes_pendientes %}
+                        <form method="POST" action="{% url 'aporte' %}" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="registrar_aporte">
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted">1. Selecciona la Semana a Pagar</label>
+                                <select class="form-select shadow-sm" name="id_aporte" required>
+                                    <option value="" disabled selected>-- Elige una semana --</option>
+                                    {% for ap in aportes_pendientes %}
+                                        <option value="{{ ap.pk }}">
+                                            Semana {{ ap.numerosemana }}/{{ ap.fechaplanificadadada|date:"m/Y" }} ({{ ap.estadoaporte }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-muted">2. ¿A qué cuenta depositaste?</label>
+                                <select class="form-select shadow-sm" name="id_metodo_pago" id="select-cuenta" required>
+                                    <option value="" disabled selected>-- Elige la cuenta de destino --</option>
+                                    {% for metodo in metodos_activos %}
+                                        <option value="{{ metodo.idmetodopago }}" data-banco="{{ metodo.nombremetodopago }}" data-tipo="{{ metodo.descripcionmetodopago }}" data-numero="{{ metodo.urlmetodopago }}">
+                                            {{ metodo.nombremetodopago }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+
+                                <div id="detalle-cuenta" class="mt-3 p-3 bg-white rounded border border-warning border-start border-4 shadow-sm d-none animate__animated animate__fadeIn">
+                                    <p class="mb-1 small"><strong>Entidad:</strong> <span id="info-banco" class="text-dark fw-bold"></span></p>
+                                    <p class="mb-1 small"><strong>Número:</strong> <span id="info-numero" class="font-monospace fw-bold text-primary fs-6 user-select-all"></span></p>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold small text-muted">3. Monto Total (Bingo + Ahorro)</label>
+                                <div class="input-group input-group-lg shadow-sm">
+                                    <span class="input-group-text bg-white text-warning-emphasis fw-bold">$</span>
+                                    <input type="number" class="form-control fw-bold" name="monto_pagado" step="0.01" min="2" placeholder="Ej: 7.00" required>
+                                </div>
+                                <div class="form-text small mt-1"><i class="fas fa-info-circle"></i> Recuerda: $2 obligatorios de Bingo + Tu Meta de Ahorro.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold small text-muted">4. Comprobante del Depósito</label>
+                                <input type="file" class="form-control shadow-sm" name="comprobanteaporte" accept="image/*" required id="input-comprobante-aporte">
+                                
+                                <div id="preview-container-aporte" class="mt-3 text-center d-none p-3 border border-2 border-dashed border-warning rounded bg-white">
+                                    <img id="img-preview-aporte" src="" class="img-fluid rounded shadow-sm" style="max-height: 200px; object-fit: contain;">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm text-dark">
+                                <i class="fas fa-paper-plane me-2"></i> Enviar a Revisión
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-4x text-success mb-3 opacity-50"></i>
+                            <h5 class="fw-bold text-muted">¡Estás al día!</h5>
+                            <p class="text-muted small">No tienes semanas pendientes de pago.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL DE APORTES -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold"><i class="fas fa-history text-secondary me-2"></i> Mis Semanas Registradas</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-4">Semana</th>
+                                    <th>Monto</th>
+                                    <th>Cuenta Destino</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ap in historial_aportes %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">Semana {{ ap.numerosemana }}/{{ ap.fechaplanificadadada|date:"m/Y" }}</td>
+                                    <td class="text-success fw-bold">${{ ap.montoaporte }}</td>
+                                    <td class="small text-muted">{{ ap.idmetodopago.nombremetodopago|default:"-" }}</td>
+                                    <td>
+                                        {% if ap.estadoaporte == 'Al Dia' or ap.estadoaporte == 'Pagado' %}
+                                            <span class="badge bg-success"><i class="fas fa-check"></i> Al Día</span>
+                                        {% elif ap.estadoaporte == 'En Revision' %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> En Revisión</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ ap.estadoaporte }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-5 text-muted">Aún no has reportado pagos de semanas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectCuenta = document.getElementById('select-cuenta');
+        const detalleCuenta = document.getElementById('detalle-cuenta');
+        const infoBanco = document.getElementById('info-banco');
+        const infoNumero = document.getElementById('info-numero');
+
+        if (selectCuenta) {
+            selectCuenta.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.value) {
+                    infoBanco.textContent = selectedOption.getAttribute('data-banco');
+                    infoNumero.textContent = selectedOption.getAttribute('data-numero');
+                    detalleCuenta.classList.remove('d-none');
+                } else {
+                    detalleCuenta.classList.add('d-none');
+                }
+            });
+        }
+
+        const inputComprobante = document.getElementById('input-comprobante-aporte');
+        const previewContainer = document.getElementById('preview-container-aporte');
+        const imgPreview = document.getElementById('img-preview-aporte');
+
+        if (inputComprobante) {
+            inputComprobante.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imgPreview.src = e.target.result;
+                        previewContainer.classList.remove('d-none');
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    previewContainer.classList.add('d-none');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

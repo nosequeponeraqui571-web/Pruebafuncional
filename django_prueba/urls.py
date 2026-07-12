@@ -66,7 +66,10 @@ urlpatterns = [
     path('negocio/metodos-pago/', views.metodos_pago, name='metodos_pago'),
     path('negocio/pagos/', views.pago, name='pago'),
     path('negocio/venta-cartones/', views.venta_cartones, name='venta_cartones'),
-
+    # aportes 
+    path('aporte/', views.aporte, name='aporte'),
+    path('reporte/liquidacion-final/', views.reporte_liquidacion_excel, name='reporte_liquidacion_excel'),
+    path('reporte/caja-semanal/', views.reporte_caja_semanal_pdf, name='reporte_caja_semanal_pdf'),
     # ==========================================
     # 5. PARTIDA (El Motor del Juego en Vivo)
     # ==========================================

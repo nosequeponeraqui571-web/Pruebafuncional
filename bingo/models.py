@@ -475,7 +475,9 @@ class Ahorro(models.Model):
     )
     idbingo = models.ForeignKey(
         'Bingo', 
-        on_delete=models.PROTECT, 
+        on_delete=models.SET_NULL, # Es mejor SET_NULL para que no se borre el ahorro si borras el bingo
+        null=True,  # <--- AÑADIR ESTO (Permite vacíos en la base de datos)
+        blank=True, # <--- AÑADIR ESTO (Permite vacíos en los formularios) 
         db_column='idbingo',
         verbose_name="Bingo Asociado"
     )
@@ -702,6 +704,8 @@ class Regalo(models.Model):
 
 class AporteSemanal(models.Model):
     ESTADO_APORTE_CHOICES = [
+        ('Pendiente', 'Pendiente de Pago'),
+        ('En Revision', 'En Revisión'),
         ('Al Dia', 'Al Día'),
         ('Atrasado', 'Atrasado'),
     ]
@@ -724,7 +728,10 @@ class AporteSemanal(models.Model):
         'Regalo', 
         on_delete=models.CASCADE, 
         db_column='idregalo',
-        verbose_name="Regalo Asignado"
+        verbose_name="Regalo Asignado",
+        
+        null=True, 
+        blank=True,
     )
     idbingo = models.ForeignKey(
         'Bingo', 
@@ -750,6 +757,8 @@ class AporteSemanal(models.Model):
     metodoingreso = models.CharField(
         max_length=50, 
         choices=METODO_INGRESO_CHOICES,
+        null=True,  
+        blank=True,
         verbose_name="Método de Ingreso"
     )
     referenciaingreso = models.CharField(
@@ -772,6 +781,20 @@ class AporteSemanal(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name="Monto del Aporte"
     )
+    idmetodopago = models.ForeignKey(
+        'MetodoPago', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        db_column='idmetodopago',
+        verbose_name="Cuenta de Destino"
+    )
+    comprobanteaporte = models.FileField(
+        upload_to='aportes/comprobantes/', 
+        null=True, 
+        blank=True, 
+        verbose_name="Comprobante de Cuota Semanal"
+    )
     def __str__(self):
         return f"Aporte {self.idaporte} - Socio: {self.idsocio_id} - Semana: {self.numerosemana}"
 
@@ -781,7 +804,7 @@ class AporteSemanal(models.Model):
         verbose_name_plural = 'Control de Aportes Semanales'
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(estadoaporte__in=['Al Dia', 'Atrasado']),
+                condition=models.Q(estadoaporte__in=['Pendiente', 'En Revision', 'Al Dia', 'Atrasado']),
                 name='chk_aportesemanal_estadoaporte'
             ),
             models.CheckConstraint(

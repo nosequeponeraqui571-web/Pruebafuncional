@@ -76,6 +76,7 @@
         <div class="col-12 col-lg-9">
             <div class="tab-content" id="v-pills-tabContent">
                 
+                <!-- PESTAÑA COMUNIDAD -->
                 <div class="tab-pane fade show active" id="mod-comunidad" role="tabpanel">
                     
                     <div class="card-minimalista p-4 mb-4 border-start border-primary border-4">
@@ -218,9 +219,22 @@
                     </div>
                 </div> <!-- CIERRE DE PESTAÑA COMUNIDAD -->
 
-
+                <!-- PESTAÑA FINANZAS -->
                 <div class="tab-pane fade" id="mod-finanzas" role="tabpanel">
                     
+                    <!-- NUEVA TARJETA: GENERADOR DE LIQUIDACIÓN DE FIN DE AÑO -->
+                    <div class="card-minimalista p-4 mb-4 border-start border-success border-4 mt-4 bg-success bg-opacity-10">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                            <div>
+                                <h5 class="fw-bold mb-1 text-success-emphasis"><i class="fas fa-chart-pie text-success me-2"></i> Repartición de Utilidades (Fin de Año)</h5>
+                                <p class="text-success-emphasis small mb-0">Calcula la distribución justa de ganancias por intereses de préstamos basándose proporcionalmente en los ahorros de cada socio.</p>
+                            </div>
+                            <a href="{% url 'reporte_liquidacion_excel' %}" class="btn btn-success shadow-sm fw-bold px-4 hover-elevate">
+                                <i class="fas fa-file-excel me-2"></i> Descargar Excel de Liquidación
+                            </a>
+                        </div>
+                    </div>
+
                     <div class="card-minimalista p-4 mb-4 border-start border-dark border-4 mt-4">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="fw-bold mb-0"><i class="fas fa-university text-primary me-2"></i> Cuentas Recaudadoras (Destino)</h5>
@@ -325,7 +339,7 @@
                     </div>
 
                     <div class="row g-4 mb-4">
-                        <div class="col-x2-7">
+                        <div class="col-xl-7">
                             <div class="card-minimalista p-4 h-100 border-start border-success border-4">
                                 <h5 class="fw-bold mb-3">Validación de Amortizaciones (`Pago`)</h5>
                                 <div class="input-group input-group-sm mb-3">
@@ -367,7 +381,7 @@
                             </div>
                         </div>
                         
-                        <div class="col-x2-7">
+                        <div class="col-xl-5">
                             <div class="card-minimalista p-4 mb-4 border-start border-info border-4">
                                 <h6 class="fw-bold text-secondary mb-3">Fondos de Ahorro (`Ahorro`)</h6>
                                 <div class="table-responsive table-scroll-container">
@@ -412,125 +426,30 @@
                             </div>
                         </div>
                     </div>
-                    <!-- ========================================== -->
-                    <!-- MODALS DE REVISIÓN DE AHORRO / RETIRO      -->
-                    <!-- Ubicados fuera de la tarjeta para estabilidad -->
-                    <!-- ========================================== -->
-                    {% for a in ahorros %}
-                        {% if a.estadoahorro == 'Pendiente' %}
-                        <!-- CORRECCIÓN: Se cambió el ID a modalRevisarAhorro para que coincida con el botón de la tabla -->
-                        <div class="modal fade" id="modalRevisarAhorro{{ a.idahorro }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered modal-lg">
-                                <div class="modal-content border-0 shadow">
-                                    <div class="modal-header bg-dark text-white border-0">
-                                        <h5 class="modal-title fw-bold">
-                                            {% if a.montoahorro < 0 %}
-                                                <i class="fas fa-hand-holding-usd text-warning me-2"></i> Validar Retiro de Fondos
-                                            {% else %}
-                                                <i class="fas fa-piggy-bank text-info me-2"></i> Validar Depósito de Ahorro
-                                            {% endif %}
-                                        </h5>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <!-- El enctype="multipart/form-data" es CRUCIAL para poder subir el comprobante -->
-                                    <form method="POST" action="{% url 'dashboard' %}" enctype="multipart/form-data">
-                                        {% csrf_token %}
-                                        <div class="modal-body p-4 bg-light">
-                                            <div class="row g-4">
-                                                <!-- Información del Socio y Movimiento -->
-                                                <div class="col-md-6">
-                                                    <h6 class="fw-bold text-info mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
-                                                    <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
-                                                    <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
-                                                    
-                                                    <h6 class="fw-bold text-info mt-4 mb-3"><i class="fas fa-money-bill-wave"></i> Detalle del {% if a.montoahorro < 0 %}Retiro{% else %}Depósito{% endif %}</h6>
-                                                    
-                                                    {% if a.montoahorro < 0 %}
-                                                        <p class="mb-1 small"><strong>Monto Solicitado:</strong> <span class="text-danger fw-bold fs-6">${{ a.montoahorro|stringformat:"+f"|slice:"1:" }}</span> (Retiro)</p>
-                                                        
-                                                        <!-- AQUI MOSTRAMOS LAS CUENTAS DEL SOCIO PARA EL RETIRO -->
-                                                        <div class="mt-3 p-3 bg-white rounded border border-warning">
-                                                            <h6 class="small fw-bold text-warning-emphasis mb-2"><i class="fas fa-university me-1"></i> Cuentas Destino Registradas:</h6>
-                                                            {% if a.idsocio.cuentabancaria_set.all %}
-                                                                <ul class="list-unstyled mb-0 small">
-                                                                    {% for cuenta in a.idsocio.cuentabancaria_set.all %}
-                                                                        <li class="mb-2 border-bottom pb-1">
-                                                                            <strong>{{ cuenta.nombrebanco }}</strong> ({{ cuenta.tipocuenta }})<br>
-                                                                            <span class="font-monospace text-primary user-select-all">{{ cuenta.numerocuenta }}</span>
-                                                                            {% if cuenta.esprincipal %} <span class="badge bg-success ms-1" style="font-size:0.6rem;">Principal</span> {% endif %}
-                                                                        </li>
-                                                                    {% endfor %}
-                                                                </ul>
-                                                            {% else %}
-                                                                <p class="text-muted small mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> El socio no tiene cuentas registradas. Contáctalo para coordinar el pago.</p>
-                                                            {% endif %}
-                                                        </div>
 
-                                                    {% else %}
-                                                        <p class="mb-1 small"><strong>Monto a Ahorrar:</strong> <span class="text-info fw-bold fs-6">${{ a.montoahorro }}</span></p>
-                                                        <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
-                                                    {% endif %}
-                                                    
-                                                    <p class="mb-0 small mt-2"><strong>Fecha:</strong> {{ a.fechaahorro|date:"d M Y, H:i" }}</p>
-                                                </div>
-
-                                                <!-- Área de Comprobantes (Dinámica según si es Retiro o Depósito) -->
-                                                <div class="col-md-6 text-center border-start border-2">
-                                                    
-                                                    {% if a.montoahorro < 0 %}
-                                                        <!-- SI ES RETIRO: El Administrador debe SUBIR la foto -->
-                                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-upload"></i> Subir Comprobante de Transferencia</h6>
-                                                        <div class="alert alert-warning small text-start">
-                                                            Por favor, realiza la transferencia a la cuenta del socio y sube aquí la captura de pantalla como respaldo.
-                                                        </div>
-                                                        <input type="file" class="form-control form-control-sm mb-3" name="comprobanteahorro" accept="image/*" required>
-                                                        
-                                                    {% else %}
-                                                        <!-- SI ES DEPÓSITO: El Administrador REVISA la foto del socio -->
-                                                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante del Socio</h6>
-                                                        {% if a.comprobanteahorro %}
-                                                            <a href="{{ a.comprobanteahorro.url }}" target="_blank" title="Abrir en pestaña completa">
-                                                                <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" alt="Comprobante" style="max-height: 200px; object-fit: cover;">
-                                                            </a>
-                                                            <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
-                                                        {% else %}
-                                                            <div class="p-4 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
-                                                                <i class="fas fa-image-slash fa-2x mb-2 opacity-50"></i>
-                                                                <span class="small fw-bold">Sin comprobante adjunto</span>
-                                                            </div>
-                                                        {% endif %}
-                                                    {% endif %}
-
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Botones de Acción -->
-                                        <div class="modal-footer border-0 bg-white d-flex justify-content-between">
-                                            <!-- Rechazar usa JS para enviar el form con la acción de rechazo -->
-                                            <button type="submit" name="action" value="rechazar_ahorro" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas RECHAZAR este movimiento?');">
-                                                <i class="fas fa-times me-1"></i> Rechazar
-                                            </button>
-
-                                            <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
-                                            <!-- Acreditar usa la acción por defecto del form -->
-                                            <button type="submit" name="action" value="validar_ahorro" class="btn btn-info fw-bold text-white px-4 shadow-sm" onclick="return confirm('¿Confirmas esta operación?');">
-                                                <i class="fas fa-check me-1"></i> {% if a.montoahorro < 0 %}Confirmar Transferencia{% else %}Validar y Acreditar{% endif %}
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-
+                    <!-- ============================================================== -->
+                    <!-- TARJETA: CONTROL DE CAJA SEMANAL (Aportes)                     -->
+                    <!-- ============================================================== -->
                     <div class="card-minimalista p-4 mb-4 border-start border-warning border-4 mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h5 class="fw-bold mb-0">Control de Caja Semanal (`AporteSemanal`)</h5>
-                            <a href="{% url 'reporte_caja_semanal_pdf' %}" target="_blank" class="btn btn-sm btn-warning shadow-sm fw-bold text-dark">
-                                <i class="fas fa-file-pdf me-2"></i> Emitir Cierre de Caja (PDF)
-                            </a>
+                            <div class="d-flex gap-2">
+                                <!-- FILTRO POR AÑO -->
+                                <select id="filtro-anio-aportes" class="form-select form-select-sm shadow-sm" style="width: auto;" onchange="filtrarAportesPorAnio()">
+                                    <option value="ALL">🗓️ Todos los Años</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026" selected>2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                </select>
+                                
+                                <button class="btn btn-sm btn-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalGenerarSemana">
+                                    <i class="fas fa-calendar-plus me-1"></i> Aperturar Mes
+                                </button>
+                                <a href="{% url 'reporte_caja_semanal_pdf' %}" target="_blank" class="btn btn-sm btn-warning shadow-sm fw-bold text-dark">
+                                    <i class="fas fa-file-pdf me-2"></i> Reporte PDF
+                                </a>
+                            </div>
                         </div>
                         <div class="table-responsive table-scroll-container">
                             <table class="table align-middle table-sm">
@@ -540,17 +459,27 @@
                                         <th>Semana Fiscal</th>
                                         <th>Planificado</th>
                                         <th>Modalidad</th>
-                                        <th>Estado Caja</th>
+                                        <th>Estado / Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for ap in aportes_semanales %}
-                                    <tr>
+                                    <tr class="fila-aporte" data-anio="{{ ap.fechaplanificadadada|date:'Y' }}">
                                         <td class="fw-semibold">{{ ap.idsocio.primernombresocio }} {{ ap.idsocio.primerapellidosocio }}</td>
-                                        <td class="font-monospace text-center">Nº {{ ap.numerosemana }}</td>
+                                        <td class="font-monospace text-center">{{ ap.numerosemana }}/{{ ap.fechaplanificadadada|date:"m/Y" }}</td>
                                         <td>{{ ap.fechaplanificadadada|date:"d/m/Y" }}</td>
-                                        <td><span class="badge text-bg-light border">{{ ap.metodoingreso }}</span></td>
-                                        <td><span class="badge {% if ap.estadoaporte == 'Al Dia' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">{{ ap.estadoaporte }}</span></td>
+                                        <td><span class="badge text-bg-light border">{{ ap.metodoingreso|default:"Transferencia" }}</span></td>
+                                        <td>
+                                            {% if ap.estadoaporte == 'En Revision' %}
+                                                <button class="btn btn-sm btn-warning fw-bold text-dark px-3 shadow-sm w-100" data-bs-toggle="modal" data-bs-target="#modalRevisarAporte{{ ap.pk }}">
+                                                    <i class="fas fa-search me-1"></i> Revisar
+                                                </button>
+                                            {% elif ap.estadoaporte == 'Al Dia' or ap.estadoaporte == 'Pagado' %}
+                                                <span class="badge bg-success-subtle text-success border border-success px-3 py-1 w-100"><i class="fas fa-check-circle"></i> Al Día</span>
+                                            {% else %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-1 w-100">{{ ap.estadoaporte }}</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -559,6 +488,7 @@
                     </div>
                 </div> <!-- CIERRE DE PESTAÑA FINANZAS -->
 
+                <!-- PESTAÑA BINGOS -->
                 <div class="tab-pane fade" id="mod-bingos" role="tabpanel">
                     
                     <div class="row g-4 mb-4">
@@ -825,15 +755,34 @@
                         </div>
                         <div class="col-md-5">
                             <div class="card-minimalista p-4 h-100 border-start border-warning border-4">
-                                <h6 class="fw-bold text-secondary mb-3">Catálogo de Premios Físicos (`Regalo`)</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold text-secondary mb-0">Catálogo de Premios Físicos (`Regalo`)</h6>
+                                    <button class="btn btn-sm btn-outline-warning text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevoRegalo">
+                                        <i class="fas fa-plus"></i> Nuevo
+                                    </button>
+                                </div>
                                 <div class="list-group list-group-flush table-scroll-container">
                                     {% for r in regalos %}
                                     <div class="list-group-item bg-transparent px-0 py-2 small d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="fw-bold text-body">{{ r.nombreregalo }}</div>
-                                            <span class="text-muted" style="font-size:0.75rem;">Valor: ${{ r.valorregalo }}</span>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if r.urlimagen %}
+                                                <img src="{{ r.urlimagen.url }}" alt="Regalo" class="rounded object-fit-cover shadow-sm" style="width: 40px; height: 40px;">
+                                            {% else %}
+                                                <div class="bg-secondary bg-opacity-25 rounded d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-gift text-secondary"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold text-body">{{ r.nombreregalo }}</div>
+                                                <span class="text-muted" style="font-size:0.75rem;">Valor: ${{ r.valorregalo }} | Estado: <span class="badge text-bg-light border">{{ r.estadoregalo }}</span></span>
+                                            </div>
                                         </div>
-                                        <span class="badge text-bg-light border">{{ r.estadoregalo }}</span>
+                                        <form method="post" action="{% url 'dashboard' %}" class="d-inline m-0" onsubmit="return confirm('¿Seguro que deseas eliminar este regalo del catálogo?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="eliminar_regalo">
+                                            <input type="hidden" name="id_regalo" value="{{ r.idregalo }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fas fa-trash-alt"></i></button>
+                                        </form>
                                     </div>
                                     {% endfor %}
                                 </div>
@@ -1139,6 +1088,55 @@
 <!-- (Ubicados aquí para no romper el CSS)      -->
 <!-- ========================================== -->
 
+<!-- ============================================================================== -->
+<!-- MODAL: REGISTRAR NUEVA CUENTA DESTINO                                          -->
+<!-- ============================================================================== -->
+<div class="modal fade" id="modalCrearMetodoPago" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-university me-2"></i> Registrar Cuenta Destino</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="crear_metodo_pago">
+                <div class="modal-body p-4 bg-light">
+                    <p class="text-muted small mb-3">Ingresa los datos de la cuenta bancaria o billetera móvil donde los socios enviarán el dinero.</p>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control shadow-sm" name="nombremetodopago" required placeholder="Banco">
+                        <label>Banco o Billetera (Ej: Banco Pichincha, DeUna)</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <select class="form-select shadow-sm" name="descripcionmetodopago" required>
+                            <option value="Ahorros">Cuenta de Ahorros</option>
+                            <option value="Corriente">Cuenta Corriente</option>
+                            <option value="Billetera Móvil">Billetera Móvil (Número de celular)</option>
+                        </select>
+                        <label>Tipo de Cuenta</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control shadow-sm font-monospace" name="urlmetodopago" required placeholder="Número">
+                        <label>Número de Cuenta o Teléfono</label>
+                    </div>
+                    <div class="form-floating">
+                        <select class="form-select shadow-sm" name="estadometodopago" required>
+                            <option value="Activo">Activo (Visible para depósitos)</option>
+                            <option value="Inactivo">Inactivo (Oculto temporalmente)</option>
+                        </select>
+                        <label>Estado Inicial</label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-dark px-4 fw-bold shadow-sm"><i class="fas fa-save me-1"></i> Guardar Cuenta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modales Revisar Crédito -->
 {% for p in prestamos %}
     {% if p.estadoprestamo == 'Solicitado' or p.estadoprestamo == 'Pendiente' %}
@@ -1284,6 +1282,183 @@
                         <input type="hidden" name="id_pago" value="{{ py.idpago }}">
                         <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm" onclick="return confirm('¿Confirmas que recibiste los ${{ py.montopagado }} en la cuenta? Se descontará del saldo del socio.');">
                             <i class="fas fa-check me-1"></i> Validar y Descontar Saldo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+<!-- ========================================== -->
+<!-- MODALS DE REVISIÓN DE AHORRO / RETIRO      -->
+<!-- ========================================== -->
+{% for a in ahorros %}
+    {% if a.estadoahorro == 'Pendiente' %}
+    <!-- Formulario invisible para el botón de rechazar -->
+    <form method="POST" action="{% url 'dashboard' %}" id="form-rechazar-ahorro-{{ a.idahorro }}" class="d-none">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rechazar_ahorro">
+        <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+    </form>
+
+    <div class="modal fade" id="modalRevisarAhorro{{ a.idahorro }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <!-- FORM PRINCIPAL QUE ENVUELVE EL MODAL BODY PARA PODER SUBIR ARCHIVOS -->
+                <form method="POST" action="{% url 'dashboard' %}" enctype="multipart/form-data" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="validar_ahorro">
+                    <input type="hidden" name="id_ahorro" value="{{ a.idahorro }}">
+                    
+                    <div class="modal-header bg-dark text-white border-0">
+                        <h5 class="modal-title fw-bold">
+                            {% if a.montoahorro > 0 %}
+                                <i class="fas fa-piggy-bank me-2 text-info"></i> Validar Depósito de Ahorro
+                            {% else %}
+                                <i class="fas fa-hand-holding-usd me-2 text-warning"></i> Procesar Retiro de Socio
+                            {% endif %}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    
+                    <div class="modal-body p-4 bg-light">
+                        <div class="row g-4">
+                            <!-- Info del Socio -->
+                            <div class="col-md-6">
+                                <h6 class="fw-bold text-primary mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                                <p class="mb-1 small"><strong>Socio:</strong> {{ a.idsocio.primernombresocio }} {{ a.idsocio.primerapellidosocio }}</p>
+                                <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ a.idsocio.cisocio }}</span></p>
+                                <p class="mb-1 small"><strong>Teléfono:</strong> {{ a.idsocio.telefonopersonalsocio }}</p>
+                                
+                                <h6 class="fw-bold text-primary mt-4 mb-3"><i class="fas fa-exchange-alt"></i> Detalle de Transacción</h6>
+                                {% if a.montoahorro > 0 %}
+                                    <p class="mb-1 small"><strong>Monto Depositado:</strong> <span class="text-success fw-bold fs-6">+${{ a.montoahorro }}</span></p>
+                                    <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
+                                {% else %}
+                                    <p class="mb-1 small"><strong>Monto a Transferir:</strong> <span class="text-danger fw-bold fs-5">${{ a.montoahorro|floatformat:"2" }}</span></p>
+                                    
+                                    <!-- MODIFICACIÓN AQUÍ: Lista de Cuentas del Socio -->
+                                    <div class="mt-3 p-3 bg-white rounded border border-warning shadow-sm">
+                                        <h6 class="small fw-bold text-warning-emphasis mb-2"><i class="fas fa-university me-1"></i> Cuentas Destino del Socio:</h6>
+                                        {% if a.idsocio.cuentabancaria_set.all %}
+                                            <ul class="list-unstyled mb-0 small">
+                                                {% for cuenta in a.idsocio.cuentabancaria_set.all %}
+                                                    <li class="mb-2 {% if not forloop.last %}border-bottom pb-2{% endif %}">
+                                                        <strong>{{ cuenta.nombrebanco }}</strong> <span class="text-muted">({{ cuenta.tipocuenta }})</span><br>
+                                                        <span class="font-monospace text-primary fs-6 user-select-all">{{ cuenta.numerocuenta }}</span>
+                                                        {% if cuenta.esprincipal %} <span class="badge bg-success ms-1" style="font-size:0.6rem;">Principal</span> {% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted small mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> El socio no ha registrado ninguna cuenta bancaria.</p>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Comprobante Dinámico -->
+                            <div class="col-md-6 text-center border-start border-2">
+                                {% if a.montoahorro > 0 %}
+                                    <!-- MODO DEPÓSITO: Mostrar imagen subida por el socio -->
+                                    <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante del Socio</h6>
+                                    {% if a.comprobanteahorro %}
+                                        <a href="{{ a.comprobanteahorro.url }}" target="_blank">
+                                            <img src="{{ a.comprobanteahorro.url }}" class="img-fluid rounded shadow-sm border border-secondary" style="max-height: 250px; object-fit: cover;">
+                                        </a>
+                                        <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic para ampliar</p>
+                                    {% else %}
+                                        <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                            <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
+                                            <span class="small fw-bold">Sin imagen adjunta</span>
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- MODO RETIRO: Pedirle al Admin que suba la imagen de la transferencia -->
+                                    <h6 class="fw-bold text-warning mb-3"><i class="fas fa-upload"></i> Evidencia de Transferencia</h6>
+                                    <p class="small text-muted mb-3">Una vez que le transfieras el dinero al socio, sube aquí la foto del comprobante para que él pueda verla en su libreta.</p>
+                                    
+                                    <input type="file" name="comprobante_admin" class="form-control shadow-sm border-warning" accept="image/*" required>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 bg-white d-flex justify-content-between">
+                        <!-- El botón rechazar llama al formulario oculto arriba usando el atributo form="" -->
+                        <button type="submit" form="form-rechazar-ahorro-{{ a.idahorro }}" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Seguro que deseas rechazar esta transacción?');">
+                            <i class="fas fa-times me-1"></i> Rechazar
+                        </button>
+
+                        <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">
+                            <i class="fas fa-check me-1"></i> Validar Transacción
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+<!-- ============================================================== -->
+<!-- MODALES DE REVISIÓN DE APORTES SEMANALES                       -->
+<!-- ============================================================== -->
+{% for ap in aportes_semanales %}
+    {% if ap.estadoaporte == 'En Revision' %}
+    <div class="modal fade" id="modalRevisarAporte{{ ap.pk }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning text-dark border-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-calendar-check me-2"></i> Validar Pago - Semana Nº {{ ap.numerosemana }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-warning-emphasis mb-3"><i class="fas fa-user"></i> Datos del Socio</h6>
+                            <p class="mb-1 small"><strong>Socio:</strong> {{ ap.idsocio.primernombresocio }} {{ ap.idsocio.primerapellidosocio }}</p>
+                            <p class="mb-1 small"><strong>Cédula:</strong> <span class="font-monospace">{{ ap.idsocio.cisocio }}</span></p>
+                            
+                            <h6 class="fw-bold text-warning-emphasis mt-4 mb-3"><i class="fas fa-money-bill-wave"></i> Desglose del Pago</h6>
+                            <p class="mb-1 small"><strong>Cuenta Receptora:</strong> {{ ap.idmetodopago.nombremetodopago }}</p>
+                            <div class="bg-white p-3 rounded border border-warning mt-2">
+                                <h4 class="text-success fw-bold mb-0">Total: ${{ ap.montoaporte }}</h4>
+                                <small class="text-muted d-block mt-1">($2.00 Bingo + ${{ ap.montoaporte|add:"-2" }} Ahorro)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center border-start border-2">
+                            <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-image"></i> Comprobante Adjunto</h6>
+                            {% if ap.comprobanteaporte %}
+                                <a href="{{ ap.comprobanteaporte.url }}" target="_blank" title="Abrir en pestaña completa">
+                                    <img src="{{ ap.comprobanteaporte.url }}" class="img-fluid rounded shadow-sm border border-secondary" alt="Comprobante" style="max-height: 250px; object-fit: cover;">
+                                </a>
+                                <p class="small text-muted mt-2"><i class="fas fa-hand-pointer"></i> Clic en la imagen para ampliar</p>
+                            {% else %}
+                                <div class="p-5 bg-white rounded border border-secondary border-dashed text-muted h-100 d-flex flex-column justify-content-center">
+                                    <i class="fas fa-image-slash fa-3x mb-2 opacity-50"></i>
+                                    <span class="small fw-bold">El socio no adjuntó imagen</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white d-flex justify-content-between">
+                    <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="rechazar_aporte">
+                        <input type="hidden" name="id_aporte" value="{{ ap.pk }}">
+                        <button type="submit" class="btn btn-outline-danger fw-bold" onclick="return confirm('¿Rechazar este pago?');">
+                            <i class="fas fa-times me-1"></i> Rechazar
+                        </button>
+                    </form>
+                    <form method="POST" action="{% url 'dashboard' %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="validar_aporte">
+                        <input type="hidden" name="id_aporte" value="{{ ap.pk }}">
+                        <button type="submit" class="btn btn-warning text-dark fw-bold px-4 shadow-sm" onclick="return confirm('¿Confirmas que el dinero está en la cuenta?');">
+                            <i class="fas fa-check me-1"></i> Validar y Marcar al Día
                         </button>
                     </form>
                 </div>
@@ -1788,6 +1963,110 @@
 </div>
 {% endfor %}
 
+<!-- ========================================== -->
+<!-- MODAL: GENERAR MES MASIVO PARA SOCIOS      -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalGenerarSemana" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-calendar-alt me-2"></i> Aperturar Mes de Cobros</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="generar_semana_masiva">
+                <div class="modal-body p-4 bg-light">
+                    <div class="alert alert-info small border-0 bg-primary-subtle text-primary-emphasis mb-4">
+                        <i class="fas fa-magic me-1"></i> Selecciona un mes y un día. El sistema calculará cuántas semanas tiene ese mes y generará la deuda para todos los socios activos de golpe.
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <select class="form-select shadow-sm" name="mes" required>
+                                    <option value="1">Enero</option>
+                                    <option value="2">Febrero</option>
+                                    <option value="3">Marzo</option>
+                                    <option value="4">Abril</option>
+                                    <option value="5">Mayo</option>
+                                    <option value="6">Junio</option>
+                                    <option value="7">Julio</option>
+                                    <option value="8">Agosto</option>
+                                    <option value="9">Septiembre</option>
+                                    <option value="10">Octubre</option>
+                                    <option value="11">Noviembre</option>
+                                    <option value="12">Diciembre</option>
+                                </select>
+                                <label>Mes a Generar</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="number" class="form-control shadow-sm" name="anio" value="2026" min="2024" max="2050" required>
+                                <label>Año</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-floating">
+                        <select class="form-select shadow-sm" name="dia_corte" required>
+                            <option value="0">Lunes</option>
+                            <option value="1">Martes</option>
+                            <option value="2">Miércoles</option>
+                            <option value="3">Jueves</option>
+                            <option value="4">Viernes</option>
+                            <option value="5" selected>Sábado</option>
+                            <option value="6">Domingo</option>
+                        </select>
+                        <label>Día de Corte / Máximo de Pago</label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">Generar Semanas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevoRegalo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-minimalista border-0 shadow">
+            <div class="modal-header bg-warning border-0">
+                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-gift me-2"></i> Añadir Premio al Catálogo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'dashboard' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="crear_regalo">
+                <div class="modal-body p-4 bg-light">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nombre del Artículo</label>
+                        <input type="text" name="nombreregalo" class="form-control shadow-sm" placeholder="Ej: Licuadora Oster 3 Velocidades" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Valor Referencial ($)</label>
+                        <input type="number" step="0.01" min="0" name="valorregalo" class="form-control shadow-sm" placeholder="0.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Descripción (Opcional)</label>
+                        <textarea name="descripcionregalo" class="form-control shadow-sm" rows="2" placeholder="Marca, color, modelo..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Fotografía del Premio</label>
+                        <input type="file" name="urlimagen" class="form-control shadow-sm" accept="image/*" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark shadow-sm">Guardar en Catálogo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     // ==========================================
     // MAGIA 1: MEMORIA DE SCROLL Y PESTAÑAS
@@ -2082,5 +2361,27 @@
             gridContainer.appendChild(lineDiv);
         }
     }
+
+    // ==========================================
+    // MAGIA 5: FILTRO DE APORTES POR AÑO
+    // ==========================================
+    function filtrarAportesPorAnio() {
+        let anioSeleccionado = document.getElementById("filtro-anio-aportes").value;
+        let filas = document.querySelectorAll(".fila-aporte");
+        
+        filas.forEach(fila => {
+            // Si el año coincide o si el selector está en "ALL", mostramos la fila
+            if (anioSeleccionado === "ALL" || fila.getAttribute("data-anio") === anioSeleccionado) {
+                fila.style.display = "";
+            } else {
+                fila.style.display = "none";
+            }
+        });
+    }
+    
+    // Ejecutamos el filtro apenas carga la página por si se quedó guardado el "2026"
+    document.addEventListener("DOMContentLoaded", function() {
+        filtrarAportesPorAnio();
+    });
 </script>
 {% endblock %}
