@@ -145,12 +145,22 @@
                                 <tr>
                                     <td class="ps-4 text-muted small">{{ ah.fechaahorro|date:"d M Y" }}</td>
                                     <td>
-                                        <span class="fw-bold text-body">
-                                            {% if ah.montoahorro > 0 %}Depósito de Ahorro{% else %}Retiro de Fondos{% endif %}
-                                        </span>
+                                        {% if ah.montoahorro < 0 %}
+                                            <span class="fw-bold text-danger"><i class="fas fa-arrow-up me-1"></i> Retiro de Fondos</span>
+                                        {% elif ah.origenahorro == 'Semanal' %}
+                                            <span class="fw-bold text-warning-emphasis"><i class="fas fa-calendar-check text-warning me-1"></i> Ahorro de Cuota Semanal</span>
+                                        {% else %}
+                                            <span class="fw-bold text-success"><i class="fas fa-piggy-bank me-1"></i> Depósito Extra Directo</span>
+                                        {% endif %}
                                     </td>
-                                    <td class="fw-bold {% if ah.montoahorro > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {% if ah.montoahorro > 0 %}+{% endif %}${{ ah.montoahorro|floatformat:2 }}
+                                    <td class="fw-bold fs-6">
+                                        {% if ah.montoahorro < 0 %}
+                                            <span class="text-danger">-${{ ah.montoahorro|stringformat:".2f"|slice:"1:" }}</span>
+                                        {% elif ah.origenahorro == 'Semanal' %}
+                                            <span class="text-warning-emphasis">+${{ ah.montoahorro|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-success">+${{ ah.montoahorro|floatformat:2 }}</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if ah.estadoahorro == 'Acreditado' or ah.estadoahorro == 'Activo' %}
@@ -225,7 +235,7 @@
             });
         }
 
-        // NUEVO SCRIPT: Previsualización de Imagen para Ahorros
+        // SCRIPT: Previsualización de Imagen para Ahorros
         const inputComprobanteAhorro = document.getElementById('input-comprobante-ahorro');
         const previewContainerAhorro = document.getElementById('preview-container-ahorro');
         const imgPreviewAhorro = document.getElementById('img-preview-ahorro');

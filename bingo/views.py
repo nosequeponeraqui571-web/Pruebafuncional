@@ -457,16 +457,42 @@ def dashboard(request):
             elif action == 'validar_aporte':
                 id_aporte = request.POST.get('id_aporte')
                 if id_aporte:
-                    aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte)
-                    aporte_obj.estadoaporte = 'Al Dia'
-                    aporte_obj.save()
-                    messages.success(request, f"Semana N° {aporte_obj.numerosemana} marcada como 'Al Día' para {aporte_obj.idsocio.primerapellidosocio}.")
+                    try:
+                        aporte = get_object_or_404(AporteSemanal, pk=id_aporte)
+                        
+                        # 1. Calculamos el ahorro (Ej: $20 - $2 del Bingo = $18)
+                        monto_ahorro = aporte.montoaporte - Decimal('2.00')
+                        
+                        # 2. Si sobra dinero, lo mandamos a la libreta personal del socio
+                        if monto_ahorro > 0:
+                            Ahorro.objects.create(
+                                idsocio=aporte.idsocio,
+                                idmetodopago=aporte.idmetodopago,
+                                tipoahorro='Voluntario', # <--- ¡ESTA ERA LA PIEZA FALTANTE!
+                                montoahorro=monto_ahorro,
+                                estadoahorro='Acreditado', # Se acredita porque tú ya viste la foto
+                                fechaahorro=timezone.now(),
+                                comprobanteahorro=aporte.comprobanteaporte,
+                                origenahorro='Semanal' # ETIQUETA AMARILLA
+                            )
+                            messages.success(request, f"Pago validado. Se enviaron automáticamente ${monto_ahorro} a la libreta de ahorros.")
+                        else:
+                            messages.success(request, "Pago validado. (Solo cubrió los $2.00 del Bingo).")
+
+                        # 3. Por último, marcamos la semana como pagada
+                        aporte.estadoaporte = 'Al Dia'
+                        aporte.save()
+
+                    except Exception as e:
+                        # Si falta la columna o hay un error, nos avisará aquí
+                        messages.error(request, f"Error del sistema al procesar el ahorro interno: {str(e)}")
+                        
                 return redirect('dashboard')
 
             elif action == 'rechazar_aporte':
-                id_aporte = request.POST.get('id_aporte')
-                if id_aporte:
-                    aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte)
+                idaporte = request.POST.get('idaporte')
+                if idaporte:
+                    aporte_obj = get_object_or_404(AporteSemanal, pk=idaporte)
                     aporte_obj.estadoaporte = 'Atrasado'
                     aporte_obj.comprobanteaporte = None # Borramos la foto corrupta
                     aporte_obj.save()
@@ -2597,24 +2623,22 @@ def aporte(request):
         action = request.POST.get('action')
         if action == 'registrar_aporte':
             id_aporte = request.POST.get('id_aporte')
-            id_metodo = request.POST.get('id_metodo_pago')
-            monto = request.POST.get('monto_pagado')
+            monto_pagado = request.POST.get('monto_pagado') # Captura los $20 que puso el socio
+            id_metodo_pago = request.POST.get('id_metodo_pago')
             comprobante = request.FILES.get('comprobanteaporte')
 
-            if id_aporte and id_metodo and monto and comprobante:
-                # Usamos pk=id_aporte por seguridad, en caso de que tu llave primaria se llame distinto
-                aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte, idsocio=socio_obj)
-                metodo_obj = get_object_or_404(MetodoPago, idmetodopago=id_metodo)
-
+            if id_aporte and monto_pagado and id_metodo_pago and comprobante:
+                aporte_obj = get_object_or_404(AporteSemanal, pk=id_aporte)
+                metodo_obj = get_object_or_404(MetodoPago, pk=id_metodo_pago)
+                
+                # Le asignamos los valores a la semana y la mandamos a revisión
+                aporte_obj.montoaporte = Decimal(monto_pagado)
                 aporte_obj.idmetodopago = metodo_obj
-                aporte_obj.montoaporte = float(monto)
                 aporte_obj.comprobanteaporte = comprobante
                 aporte_obj.estadoaporte = 'En Revision'
                 aporte_obj.save()
-
-                messages.success(request, f"¡Comprobante enviado! El administrador validará tu pago de la Semana N° {aporte_obj.numerosemana}.")
-            else:
-                messages.error(request, "Por favor completa todos los campos y sube tu comprobante.")
+                
+                messages.success(request, "Tu pago fue enviado a revisión exitosamente.")
             return redirect('aporte')
 
     context = {

@@ -339,7 +339,7 @@
                     </div>
 
                     <div class="row g-4 mb-4">
-                        <div class="col-xl-7">
+                        <div class="col-x2-7">
                             <div class="card-minimalista p-4 h-100 border-start border-success border-4">
                                 <h5 class="fw-bold mb-3">Validación de Amortizaciones (`Pago`)</h5>
                                 <div class="input-group input-group-sm mb-3">
@@ -381,7 +381,7 @@
                             </div>
                         </div>
                         
-                        <div class="col-xl-5">
+                        <div class="col-x2-7">
                             <div class="card-minimalista p-4 mb-4 border-start border-info border-4">
                                 <h6 class="fw-bold text-secondary mb-3">Fondos de Ahorro (`Ahorro`)</h6>
                                 <div class="table-responsive table-scroll-container">
@@ -398,11 +398,12 @@
                                             <tr>
                                                 <td class="fw-bold text-dark">{{ a.idsocio.primernombresocio }}  {{ a.idsocio.primerapellidosocio }}</td>
                                                 <td>
-                                                    {% if a.montoahorro > 0 %}
-                                                        <span class="text-success fw-bold"><i class="fas fa-arrow-down"></i> +${{ a.montoahorro }}</span>
+                                                    {% if a.montoahorro < 0 %}
+                                                        <span class="text-danger fw-bold"><i class="fas fa-arrow-up"></i> -${{ a.montoahorro|stringformat:"f"|slice:"1:" }}</span>
+                                                    {% elif a.origenahorro == 'Semanal' %}
+                                                        <span class="text-warning-emphasis fw-bold" title="Viene de la Cuota Semanal"><i class="fas fa-calendar-check text-warning me-1"></i> +${{ a.montoahorro|floatformat:2 }}</span>
                                                     {% else %}
-                                                        <!-- Formatea el número para quitar el signo negativo visualmente -->
-                                                        <span class="text-danger fw-bold"><i class="fas fa-arrow-up"></i> -${{ a.montoahorro|stringformat:".2f" }}</span>
+                                                        <span class="text-success fw-bold" title="Depósito Directo"><i class="fas fa-piggy-bank me-1"></i> +${{ a.montoahorro|floatformat:2 }}</span>
                                                     {% endif %}
                                                 </td>
                                                 <td class="text-center">
@@ -459,7 +460,7 @@
                                         <th>Semana Fiscal</th>
                                         <th>Planificado</th>
                                         <th>Modalidad</th>
-                                        <th>Estado / Acción</th>
+                                        <th class="text-center">Estado / Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -468,8 +469,8 @@
                                         <td class="fw-semibold">{{ ap.idsocio.primernombresocio }} {{ ap.idsocio.primerapellidosocio }}</td>
                                         <td class="font-monospace text-center">{{ ap.numerosemana }}/{{ ap.fechaplanificadadada|date:"m/Y" }}</td>
                                         <td>{{ ap.fechaplanificadadada|date:"d/m/Y" }}</td>
-                                        <td><span class="badge text-bg-light border">{{ ap.metodoingreso|default:"Transferencia" }}</span></td>
-                                        <td>
+                                        <td><span class="badge text-bg-light border">{{ ap.metodoingreso|default:"-" }}</span></td>
+                                        <td class="text-center">
                                             {% if ap.estadoaporte == 'En Revision' %}
                                                 <button class="btn btn-sm btn-warning fw-bold text-dark px-3 shadow-sm w-100" data-bs-toggle="modal" data-bs-target="#modalRevisarAporte{{ ap.pk }}">
                                                     <i class="fas fa-search me-1"></i> Revisar
@@ -1337,24 +1338,9 @@
                                     <p class="mb-1 small"><strong>Monto Depositado:</strong> <span class="text-success fw-bold fs-6">+${{ a.montoahorro }}</span></p>
                                     <p class="mb-1 small"><strong>Destino:</strong> {{ a.idmetodopago.nombremetodopago|default:"No especificado" }}</p>
                                 {% else %}
-                                    <p class="mb-1 small"><strong>Monto a Transferir:</strong> <span class="text-danger fw-bold fs-5">${{ a.montoahorro|floatformat:"2" }}</span></p>
-                                    
-                                    <!-- MODIFICACIÓN AQUÍ: Lista de Cuentas del Socio -->
-                                    <div class="mt-3 p-3 bg-white rounded border border-warning shadow-sm">
-                                        <h6 class="small fw-bold text-warning-emphasis mb-2"><i class="fas fa-university me-1"></i> Cuentas Destino del Socio:</h6>
-                                        {% if a.idsocio.cuentabancaria_set.all %}
-                                            <ul class="list-unstyled mb-0 small">
-                                                {% for cuenta in a.idsocio.cuentabancaria_set.all %}
-                                                    <li class="mb-2 {% if not forloop.last %}border-bottom pb-2{% endif %}">
-                                                        <strong>{{ cuenta.nombrebanco }}</strong> <span class="text-muted">({{ cuenta.tipocuenta }})</span><br>
-                                                        <span class="font-monospace text-primary fs-6 user-select-all">{{ cuenta.numerocuenta }}</span>
-                                                        {% if cuenta.esprincipal %} <span class="badge bg-success ms-1" style="font-size:0.6rem;">Principal</span> {% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            <p class="text-muted small mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> El socio no ha registrado ninguna cuenta bancaria.</p>
-                                        {% endif %}
+                                    <p class="mb-1 small"><strong>Monto a Transferir:</strong> <span class="text-danger fw-bold fs-5">${{ a.montoahorro|stringformat:"f"|slice:"1:" }}</span></p>
+                                    <div class="alert alert-info py-2 small mt-3">
+                                        <i class="fas fa-info-circle"></i> Revisa las cuentas bancarias registradas por el socio en la pestaña "Comunidad" y realízale la transferencia de sus fondos.
                                     </div>
                                 {% endif %}
                             </div>
